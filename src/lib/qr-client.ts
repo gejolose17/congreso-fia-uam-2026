@@ -88,3 +88,4 @@ export async function generateUamQrDataUrl(
 
   return canvas.toDataURL("image/png");
 }
+

@@ -1,10 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { AlertTriangle, CheckCircle2, Loader2, UserCheck } from "lucide-react";
 import { RegistrationShell } from "@/components/RegistrationShell";
-import { RegistrationPassQr } from "@/components/RegistrationPassQr";
 
 export default function InvitadosPage() {
   const [firstName, setFirstName] = useState("");
@@ -55,8 +53,7 @@ export default function InvitadosPage() {
   return (
     <RegistrationShell
       badge="Formulario 4 · Invitados"
-      title="Registro de Invitados"
-      subtitle="Ingresa tu nombre y apellido para confirmar tu asistencia al Congreso FIA 2026."
+      title="Registro de ingreso"
     >
       {successName ? (
         <div className="space-y-5 text-center text-white">
@@ -67,35 +64,20 @@ export default function InvitadosPage() {
             <span className="inline-block rounded-full bg-[#F17C30] px-3 py-1 text-xs font-bold text-white">
               INVITADO REGISTRADO
             </span>
-            <h2 className="mt-2 text-2xl font-extrabold text-white">
+            <h2 className="mt-2 text-xl font-extrabold text-white sm:text-2xl">
               {successName}
             </h2>
           </div>
           <div className="rounded-2xl border border-white/30 bg-white/15 p-4 text-sm font-medium text-white">
             ¡Bienvenido al Congreso de Ingeniería y Arquitectura UAM! Tu registro se guardó correctamente.
           </div>
-          <RegistrationPassQr
-            categoryLabel="Invitado Especial"
-            fullName={successName}
-            subtitle="Congreso FIA UAM 2026"
-            codeOrId="INVITADO-FIA-2026"
-            accentColor="#F17C30"
-          />
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <button
-              type="button"
-              onClick={reset}
-              className="flex-1 rounded-xl border border-white/40 bg-white/15 px-4 py-3 text-sm font-bold text-white hover:bg-white/25"
-            >
-              Registrar otro invitado
-            </button>
-            <Link
-              href="/"
-              className="flex-1 rounded-xl bg-[#F17C30] px-4 py-3 text-sm font-bold text-white shadow hover:opacity-95"
-            >
-              Volver al Portal
-            </Link>
-          </div>
+          <button
+            type="button"
+            onClick={reset}
+            className="w-full rounded-xl bg-[#F17C30] px-4 py-3.5 text-base font-bold text-white shadow-lg transition active:scale-[0.99] hover:opacity-95"
+          >
+            Nuevo registro
+          </button>
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4 text-white">
@@ -112,7 +94,7 @@ export default function InvitadosPage() {
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
               placeholder="Tu nombre"
-              className="w-full rounded-xl border border-white/40 bg-white/15 px-4 py-3 text-sm font-semibold text-white placeholder-white/60 outline-none transition focus:border-[#F17C30] focus:bg-white/25 focus:ring-2 focus:ring-[#F17C30]"
+              className="w-full rounded-xl border border-white/40 bg-white/15 px-4 py-3.5 text-base font-semibold text-white placeholder-white/60 outline-none transition focus:border-[#F17C30] focus:bg-white/25 focus:ring-2 focus:ring-[#F17C30]"
             />
           </div>
 
@@ -129,7 +111,7 @@ export default function InvitadosPage() {
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
               placeholder="Tu apellido"
-              className="w-full rounded-xl border border-white/40 bg-white/15 px-4 py-3 text-sm font-semibold text-white placeholder-white/60 outline-none transition focus:border-[#F17C30] focus:bg-white/25 focus:ring-2 focus:ring-[#F17C30]"
+              className="w-full rounded-xl border border-white/40 bg-white/15 px-4 py-3.5 text-base font-semibold text-white placeholder-white/60 outline-none transition focus:border-[#F17C30] focus:bg-white/25 focus:ring-2 focus:ring-[#F17C30]"
             />
           </div>
 
@@ -143,14 +125,14 @@ export default function InvitadosPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-[#F17C30] px-5 py-3.5 text-base font-bold text-white shadow-lg transition hover:opacity-95 disabled:opacity-60"
+            className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-[#F17C30] px-5 py-4 text-base font-extrabold text-white shadow-lg transition active:scale-[0.99] hover:opacity-95 disabled:opacity-60"
           >
             {submitting ? (
               <Loader2 className="h-5 w-5 animate-spin" />
             ) : (
               <UserCheck className="h-5 w-5" />
             )}
-            Enviar Registro
+            Confirmar registro
           </button>
         </form>
       )}

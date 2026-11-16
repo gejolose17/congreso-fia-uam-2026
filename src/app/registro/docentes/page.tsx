@@ -1,11 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { AlertTriangle, CheckCircle2, Loader2, Users } from "lucide-react";
 import { FIA_CAREERS } from "@/lib/constants";
 import { RegistrationShell } from "@/components/RegistrationShell";
-import { RegistrationPassQr } from "@/components/RegistrationPassQr";
 
 export default function DocentesPage() {
   const [firstName, setFirstName] = useState("");
@@ -69,8 +67,7 @@ export default function DocentesPage() {
   return (
     <RegistrationShell
       badge="Formulario 3 · Docentes UAM"
-      title="Registro de Docentes UAM"
-      subtitle="Completa tu nombre, apellido y selecciona la carrera a la que perteneces."
+      title="Registro de ingreso"
     >
       {successData ? (
         <div className="space-y-5 text-center text-white">
@@ -81,7 +78,7 @@ export default function DocentesPage() {
             <span className="inline-block rounded-full bg-[#F17C30] px-3 py-1 text-xs font-bold text-white">
               DOCENTE UAM REGISTRADO
             </span>
-            <h2 className="mt-2 text-2xl font-extrabold text-white">
+            <h2 className="mt-2 text-xl font-extrabold text-white sm:text-2xl">
               {successData.fullName}
             </h2>
             <p className="mt-1 text-sm font-semibold text-white/95">
@@ -91,28 +88,13 @@ export default function DocentesPage() {
           <div className="rounded-2xl border border-white/30 bg-white/15 p-4 text-sm font-medium text-white">
             ¡Bienvenido al Congreso FIA 2026! Su asistencia ha sido registrada.
           </div>
-          <RegistrationPassQr
-            categoryLabel="Docente UAM · FIA"
-            fullName={successData.fullName}
-            subtitle={successData.career}
-            codeOrId="DOCENTE-FIA-2026"
-            accentColor="#F17C30"
-          />
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <button
-              type="button"
-              onClick={reset}
-              className="flex-1 rounded-xl border border-white/40 bg-white/15 px-4 py-3 text-sm font-bold text-white hover:bg-white/25"
-            >
-              Registrar otro docente
-            </button>
-            <Link
-              href="/"
-              className="flex-1 rounded-xl bg-[#F17C30] px-4 py-3 text-sm font-bold text-white shadow hover:opacity-95"
-            >
-              Volver al Portal
-            </Link>
-          </div>
+          <button
+            type="button"
+            onClick={reset}
+            className="w-full rounded-xl bg-[#F17C30] px-4 py-3.5 text-base font-bold text-white shadow-lg transition active:scale-[0.99] hover:opacity-95"
+          >
+            Nuevo registro
+          </button>
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-5 text-white">
@@ -130,7 +112,7 @@ export default function DocentesPage() {
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
                 placeholder="Tu nombre"
-                className="w-full rounded-xl border border-white/40 bg-white/15 px-4 py-3 text-sm font-semibold text-white placeholder-white/60 outline-none transition focus:border-[#F17C30] focus:bg-white/25 focus:ring-2 focus:ring-[#F17C30]"
+                className="w-full rounded-xl border border-white/40 bg-white/15 px-4 py-3.5 text-base font-semibold text-white placeholder-white/60 outline-none transition focus:border-[#F17C30] focus:bg-white/25 focus:ring-2 focus:ring-[#F17C30]"
               />
             </div>
 
@@ -147,7 +129,7 @@ export default function DocentesPage() {
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
                 placeholder="Tu apellido"
-                className="w-full rounded-xl border border-white/40 bg-white/15 px-4 py-3 text-sm font-semibold text-white placeholder-white/60 outline-none transition focus:border-[#F17C30] focus:bg-white/25 focus:ring-2 focus:ring-[#F17C30]"
+                className="w-full rounded-xl border border-white/40 bg-white/15 px-4 py-3.5 text-base font-semibold text-white placeholder-white/60 outline-none transition focus:border-[#F17C30] focus:bg-white/25 focus:ring-2 focus:ring-[#F17C30]"
               />
             </div>
           </div>
@@ -164,7 +146,7 @@ export default function DocentesPage() {
                     key={c}
                     type="button"
                     onClick={() => setCareer(c)}
-                    className={`flex items-center justify-between rounded-xl border px-4 py-3.5 text-left text-sm font-bold text-white transition ${
+                    className={`flex items-center justify-between rounded-xl border px-4 py-3.5 text-left text-base font-bold text-white transition active:scale-[0.99] ${
                       selected
                         ? "border-white bg-[#F17C30] shadow-md ring-2 ring-white/50"
                         : "border-white/35 bg-white/15 hover:bg-white/25"
@@ -194,14 +176,14 @@ export default function DocentesPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#F17C30] px-5 py-3.5 text-base font-bold text-white shadow-lg transition hover:opacity-95 disabled:opacity-60"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#F17C30] px-5 py-4 text-base font-extrabold text-white shadow-lg transition active:scale-[0.99] hover:opacity-95 disabled:opacity-60"
           >
             {submitting ? (
               <Loader2 className="h-5 w-5 animate-spin" />
             ) : (
               <Users className="h-5 w-5" />
             )}
-            Enviar Registro
+            Confirmar registro
           </button>
         </form>
       )}
