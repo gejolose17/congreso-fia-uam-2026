@@ -24,13 +24,50 @@ const APPS_SCRIPT_SNIPPET = `function doGet(e) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sSheet = ss.getSheetByName('1_Estudiantes');
   var pSheet = ss.getSheetByName('2_Patrocinadores');
-  var sData = sSheet.getRange(2, 1, Math.max(1, sSheet.getLastRow() - 1), 5).getValues();
-  var students = sData.filter(function(r){ return r[0] && r[1]; }).map(function(r, idx){
-    return { cif: String(r[0]).trim(), fullName: String(r[1]).trim(), career: String(r[2]||'').trim(), checkedIn: r[3] === true, checkedInAt: r[4] ? String(r[4]) : null, sheetRow: idx + 2 };
+  var tSheet = ss.getSheetByName('3_Docentes');
+  var gSheet = ss.getSheetByName('4_Invitados');
+
+  var sData = sSheet.getLastRow() > 1 ? sSheet.getRange(2, 1, sSheet.getLastRow() - 1, 5).getValues() : [];
+  var students = [];
+  sData.forEach(function(r, idx) {
+    var cif = String(r[0] || '').trim();
+    var fullName = String(r[1] || '').trim();
+    if (!cif && !fullName) return;
+    students.push({
+      cif: cif || ('SIN-CIF-' + (idx + 2)),
+      fullName: fullName || ('Estudiante ' + cif),
+      career: String(r[2] || 'Ingeniería Industrial').trim(),
+      checkedIn: r[3] === true || String(r[3]).toUpperCase() === 'TRUE',
+      checkedInAt: r[4] ? String(r[4]) : null,
+      sheetRow: idx + 2
+    });
   });
-  var cData = pSheet.getRange(2, 6, Math.max(1, pSheet.getLastRow() - 1), 1).getValues();
-  var companies = cData.map(function(r){ return String(r[0]||'').trim(); }).filter(Boolean);
-  return ContentService.createTextOutput(JSON.stringify({ students: students, companies: companies })).setMimeType(ContentService.MimeType.JSON);
+
+  var pData = pSheet.getLastRow() > 1 ? pSheet.getRange(2, 1, pSheet.getLastRow() - 1, 6).getValues() : [];
+  var companies = pData.map(function(r){ return String(r[5] || '').trim(); }).filter(Boolean);
+
+  var registrations = [];
+  pData.forEach(function(r, idx) {
+    if (r[0] && (r[1] || r[2])) {
+      registrations.push({ id: 'sheet-sponsor-' + (idx + 2), category: 'sponsor', company: String(r[0]).trim(), firstName: String(r[1]).trim(), lastName: String(r[2]).trim(), career: null, createdAt: r[3] ? new Date(r[3]).toISOString() : new Date().toISOString() });
+    }
+  });
+
+  var tData = tSheet && tSheet.getLastRow() > 1 ? tSheet.getRange(2, 1, tSheet.getLastRow() - 1, 4).getValues() : [];
+  tData.forEach(function(r, idx) {
+    if (r[0] || r[1]) {
+      registrations.push({ id: 'sheet-teacher-' + (idx + 2), category: 'teacher', company: null, firstName: String(r[0]).trim(), lastName: String(r[1]).trim(), career: String(r[2] || '').trim(), createdAt: r[3] ? new Date(r[3]).toISOString() : new Date().toISOString() });
+    }
+  });
+
+  var gData = gSheet && gSheet.getLastRow() > 1 ? gSheet.getRange(2, 1, gSheet.getLastRow() - 1, 3).getValues() : [];
+  gData.forEach(function(r, idx) {
+    if (r[0] || r[1]) {
+      registrations.push({ id: 'sheet-guest-' + (idx + 2), category: 'guest', company: null, firstName: String(r[0]).trim(), lastName: String(r[1]).trim(), career: null, createdAt: r[2] ? new Date(r[2]).toISOString() : new Date().toISOString() });
+    }
+  });
+
+  return ContentService.createTextOutput(JSON.stringify({ students: students, companies: companies, registrations: registrations })).setMimeType(ContentService.MimeType.JSON);
 }
 
 function doPost(e) {

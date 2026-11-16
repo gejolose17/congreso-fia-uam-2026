@@ -104,7 +104,24 @@ function getSqliteDb(): SqliteDb {
     );
   `);
 
-  // Seed initial test data if empty so the app works immediately out of the box
+  // Automatically replace legacy dummy test data ('20210001' / 'Empresa Prueba 01') if present
+  const hasLegacyStudent = db
+    .prepare("SELECT 1 as found FROM students WHERE cif = '20210001' LIMIT 1")
+    .get() as { found: number } | undefined;
+  if (hasLegacyStudent) {
+    db.exec("DELETE FROM students WHERE sync_status = 'synced'");
+  }
+
+  const hasLegacyCompany = db
+    .prepare(
+      "SELECT 1 as found FROM companies WHERE name LIKE 'Empresa Prueba%' LIMIT 1"
+    )
+    .get() as { found: number } | undefined;
+  if (hasLegacyCompany) {
+    db.exec("DELETE FROM companies");
+  }
+
+  // Seed initial real data from constants if empty so the app works immediately out of the box
   const studentCount = db
     .prepare("SELECT COUNT(*) as cnt FROM students")
     .get() as { cnt: number };
@@ -372,23 +389,30 @@ export async function upsertStudentsFromSheet(
   if (items.length === 0) return 0;
 
   if (isSupabaseEnabled()) {
-    // Preserve local check-ins if already checked in locally
+    // Preserve only unsynced pending check-ins; otherwise Google Sheet is authoritative
     const existingRows = await supabaseFetch<
       Array<{ cif: string; checked_in: boolean; checked_in_at: string | null; sync_status: string }>
     >("students?select=cif,checked_in,checked_in_at,sync_status");
     const existingMap = new Map(existingRows.map((r) => [r.cif, r]));
+    const sheetCifSet = new Set(items.map((s) => s.cif));
 
     const payload = items.map((s) => {
       const local = existingMap.get(s.cif);
-      const checkedIn = Boolean(local?.checked_in || s.checkedIn);
-      const syncStatus =
-        local?.checked_in && !s.checkedIn ? local.sync_status : "synced";
+      const keepLocalPending =
+        local?.sync_status === "pending" && local.checked_in && !s.checkedIn;
+      const checkedIn = keepLocalPending ? true : Boolean(s.checkedIn);
+      const syncStatus = keepLocalPending ? "pending" : "synced";
+      const checkedInAt = keepLocalPending
+        ? local?.checked_in_at
+        : s.checkedIn
+          ? s.checkedInAt || local?.checked_in_at || new Date().toISOString()
+          : null;
       return {
         cif: s.cif,
         full_name: s.fullName,
         career: s.career,
         checked_in: checkedIn,
-        checked_in_at: local?.checked_in_at || s.checkedInAt,
+        checked_in_at: checkedInAt,
         sheet_row: s.sheetRow,
         sync_status: syncStatus,
       };
@@ -399,6 +423,16 @@ export async function upsertStudentsFromSheet(
       prefer: "resolution=merge-duplicates",
       body: JSON.stringify(payload),
     });
+
+    // Remove students deleted from the Google Sheet (unless pending sync)
+    for (const r of existingRows) {
+      if (!sheetCifSet.has(r.cif) && r.sync_status !== "pending") {
+        await supabaseFetch(`students?cif=eq.${encodeURIComponent(r.cif)}`, {
+          method: "DELETE",
+        });
+      }
+    }
+
     return payload.length;
   }
 
@@ -410,10 +444,27 @@ export async function upsertStudentsFromSheet(
       full_name = excluded.full_name,
       career = excluded.career,
       sheet_row = excluded.sheet_row,
-      checked_in = CASE WHEN students.checked_in = 1 THEN 1 ELSE excluded.checked_in END,
-      checked_in_at = CASE WHEN students.checked_in = 1 THEN students.checked_in_at ELSE excluded.checked_in_at END,
-      sync_status = CASE WHEN students.checked_in = 1 AND excluded.checked_in = 0 THEN students.sync_status ELSE 'synced' END
+      checked_in = CASE
+        WHEN students.sync_status = 'pending' AND students.checked_in = 1 THEN 1
+        ELSE excluded.checked_in
+      END,
+      checked_in_at = CASE
+        WHEN students.sync_status = 'pending' AND students.checked_in = 1 THEN students.checked_in_at
+        WHEN excluded.checked_in = 1 THEN COALESCE(excluded.checked_in_at, students.checked_in_at, ?)
+        ELSE NULL
+      END,
+      sync_status = CASE
+        WHEN students.sync_status = 'pending' AND students.checked_in = 1 AND excluded.checked_in = 0 THEN 'pending'
+        ELSE 'synced'
+      END
   `);
+
+  const nowIso = new Date().toISOString();
+  const sheetCifs = new Set(items.map((s) => s.cif));
+  const existingCifs = db
+    .prepare("SELECT cif, sync_status FROM students")
+    .all() as Array<{ cif: string; sync_status: string }>;
+  const delStmt = db.prepare("DELETE FROM students WHERE cif = ?");
 
   db.exec("BEGIN");
   try {
@@ -424,8 +475,14 @@ export async function upsertStudentsFromSheet(
         s.career,
         s.checkedIn ? 1 : 0,
         s.checkedInAt,
-        s.sheetRow
+        s.sheetRow,
+        nowIso
       );
+    }
+    for (const row of existingCifs) {
+      if (!sheetCifs.has(row.cif) && row.sync_status !== "pending") {
+        delStmt.run(row.cif);
+      }
     }
     db.exec("COMMIT");
   } catch (err) {
@@ -433,6 +490,70 @@ export async function upsertStudentsFromSheet(
     throw err;
   }
   return items.length;
+}
+
+export async function reconcileRegistrationsFromSheet(
+  sheetItems: Array<{
+    id: string;
+    category: RegistrationCategory;
+    company?: string | null;
+    firstName: string;
+    lastName: string;
+    career?: string | null;
+    createdAt: string;
+  }>
+): Promise<number> {
+  if (isSupabaseEnabled()) {
+    await supabaseFetch("registrations?sync_status=eq.synced", {
+      method: "DELETE",
+    });
+    if (sheetItems.length > 0) {
+      await supabaseFetch("registrations?on_conflict=id", {
+        method: "POST",
+        prefer: "resolution=merge-duplicates",
+        body: JSON.stringify(
+          sheetItems.map((r) => ({
+            id: r.id,
+            category: r.category,
+            company: r.company || null,
+            first_name: r.firstName,
+            last_name: r.lastName,
+            career: r.career || null,
+            created_at: r.createdAt,
+            sync_status: "synced",
+          }))
+        ),
+      });
+    }
+    return sheetItems.length;
+  }
+
+  const db = getSqliteDb();
+  const insertStmt = db.prepare(`
+    INSERT OR REPLACE INTO registrations (id, category, company, first_name, last_name, career, created_at, sync_status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'synced')
+  `);
+
+  db.exec("BEGIN");
+  try {
+    db.exec("DELETE FROM registrations WHERE sync_status = 'synced'");
+    for (const r of sheetItems) {
+      insertStmt.run(
+        r.id,
+        r.category,
+        r.company || null,
+        r.firstName,
+        r.lastName,
+        r.career || null,
+        r.createdAt
+      );
+    }
+    db.exec("COMMIT");
+  } catch (err) {
+    db.exec("ROLLBACK");
+    throw err;
+  }
+  return sheetItems.length;
 }
 
 // ---------- Company Operations ----------

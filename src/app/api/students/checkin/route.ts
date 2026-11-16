@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkInStudentAtomic } from "@/lib/db";
 import { notifyDashboardUpdate } from "@/lib/events";
-import { scheduleBackgroundSync } from "@/lib/google";
+import {
+  ensureFreshSheetData,
+  syncPendingToGoogleSheets,
+} from "@/lib/google";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +19,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const result = await checkInStudentAtomic(cif);
+    await ensureFreshSheetData(5000);
+    let result = await checkInStudentAtomic(cif);
+
+    if (result.status === "not_found") {
+      await ensureFreshSheetData(0);
+      result = await checkInStudentAtomic(cif);
+    }
 
     if (result.status === "not_found") {
       return NextResponse.json(
@@ -45,8 +54,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    await syncPendingToGoogleSheets().catch(() => null);
     notifyDashboardUpdate();
-    scheduleBackgroundSync();
 
     return NextResponse.json({
       ok: true,
@@ -66,4 +75,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-

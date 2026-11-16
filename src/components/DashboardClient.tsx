@@ -64,6 +64,20 @@ export function DashboardClient({ initialStats }: DashboardClientProps) {
     };
   }, []);
 
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch("/api/admin/stats", { cache: "no-store" });
+        if (res.ok) {
+          setStats((await res.json()) as DashboardStats);
+        }
+      } catch {
+        // ignore transient network error
+      }
+    }, 8000);
+    return () => clearInterval(interval);
+  }, []);
+
   const refreshNow = async () => {
     const res = await fetch("/api/admin/stats");
     if (res.ok) {

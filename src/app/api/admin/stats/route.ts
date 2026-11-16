@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { isAdminAuthenticated } from "@/lib/auth";
 import { getDashboardStats } from "@/lib/db";
+import { ensureFreshSheetData } from "@/lib/google";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,7 @@ export async function GET() {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
   try {
+    await ensureFreshSheetData(5000);
     const stats = await getDashboardStats();
     return NextResponse.json(stats);
   } catch (err) {
@@ -19,4 +21,3 @@ export async function GET() {
     );
   }
 }
-

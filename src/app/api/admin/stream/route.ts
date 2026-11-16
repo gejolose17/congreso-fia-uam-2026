@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
 import { isAdminAuthenticated } from "@/lib/auth";
-import { getDashboardStats, getStorageMode } from "@/lib/db";
+import { getDashboardStats } from "@/lib/db";
 import { dashboardEmitter } from "@/lib/events";
+import { ensureFreshSheetData } from "@/lib/google";
 
 export const dynamic = "force-dynamic";
 
@@ -16,9 +17,12 @@ export async function GET(req: NextRequest) {
     async start(controller) {
       let closed = false;
 
-      const sendStats = async () => {
+      const sendStats = async (forcePull = false) => {
         if (closed) return;
         try {
+          if (forcePull) {
+            await ensureFreshSheetData(6000);
+          }
           const stats = await getDashboardStats();
           controller.enqueue(
             encoder.encode(`event: stats\ndata: ${JSON.stringify(stats)}\n\n`)
@@ -28,18 +32,17 @@ export async function GET(req: NextRequest) {
         }
       };
 
-      await sendStats();
+      await sendStats(true);
 
       const onUpdate = () => {
-        void sendStats();
+        void sendStats(false);
       };
       dashboardEmitter.on("update", onUpdate);
 
-      // Periodic refresh (especially useful when running in Supabase serverless mode)
-      const intervalMs = getStorageMode() === "supabase" ? 3000 : 8000;
+      // Periodic auto-sync with Google Sheets & refresh
       const timer = setInterval(() => {
-        void sendStats();
-      }, intervalMs);
+        void sendStats(true);
+      }, 6000);
 
       const heartbeat = setInterval(() => {
         if (!closed) {
@@ -69,4 +72,3 @@ export async function GET(req: NextRequest) {
     },
   });
 }
-

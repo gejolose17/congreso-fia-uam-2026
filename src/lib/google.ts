@@ -9,11 +9,13 @@ import {
   getPendingSyncItems,
   markRegistrationsSyncStatus,
   markStudentsSyncStatus,
+  reconcileRegistrationsFromSheet,
   replaceCompaniesFromSheet,
   setConfigValue,
   upsertStudentsFromSheet,
 } from "./db";
-import type { GoogleSetupStatus } from "./types";
+import { notifyDashboardUpdate } from "./events";
+import type { GoogleSetupStatus, RegistrationCategory } from "./types";
 
 const GOOGLE_SCOPES = [
   "https://www.googleapis.com/auth/spreadsheets",
@@ -35,6 +37,32 @@ function formatManaguaTimestamp(iso: string | null): string {
   }).format(d);
 }
 
+function parseSheetDateToIso(raw: string | null | undefined, fallbackIdx = 0): string {
+  const s = String(raw || "").trim();
+  if (!s) {
+    return new Date(Date.now() - fallbackIdx * 1000).toISOString();
+  }
+  const parsed = Date.parse(s);
+  if (!Number.isNaN(parsed)) {
+    return new Date(parsed).toISOString();
+  }
+  // Parse dd/mm/yyyy hh:mm:ss format
+  const m = s.match(
+    /^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})(?:[,\s]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/
+  );
+  if (m) {
+    const day = Number(m[1]);
+    const month = Number(m[2]) - 1;
+    const year = Number(m[3]) < 100 ? 2000 + Number(m[3]) : Number(m[3]);
+    const hh = Number(m[4] || 0);
+    const mm = Number(m[5] || 0);
+    const ss = Number(m[6] || 0);
+    const d = new Date(Date.UTC(year, month, day, hh + 6, mm, ss));
+    if (!Number.isNaN(d.getTime())) return d.toISOString();
+  }
+  return new Date(Date.now() - fallbackIdx * 1000).toISOString();
+}
+
 export function isOAuthConfigured(): boolean {
   return Boolean(
     process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
@@ -44,7 +72,9 @@ export function isOAuthConfigured(): boolean {
 export function getGoogleAuthUrl(origin: string, state: string): string {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   if (!clientId) {
-    throw new Error("Falta configurar GOOGLE_CLIENT_ID en las variables de entorno.");
+    throw new Error(
+      "Falta configurar GOOGLE_CLIENT_ID en las variables de entorno."
+    );
   }
   const redirectUri = `${origin}/api/auth/google/callback`;
   const params = new URLSearchParams({
@@ -132,8 +162,11 @@ async function getValidAccessToken(): Promise<string | null> {
     return cfg.google_access_token;
   }
 
-  if (!cfg.google_refresh_token || !isOAuthConfigured()) {
-    return null;
+  const refreshToken =
+    cfg.google_refresh_token || process.env.GOOGLE_REFRESH_TOKEN || null;
+
+  if (!refreshToken || !isOAuthConfigured()) {
+    return process.env.GOOGLE_ACCESS_TOKEN || null;
   }
 
   const res = await fetch("https://oauth2.googleapis.com/token", {
@@ -142,7 +175,7 @@ async function getValidAccessToken(): Promise<string | null> {
     body: new URLSearchParams({
       client_id: process.env.GOOGLE_CLIENT_ID!,
       client_secret: process.env.GOOGLE_CLIENT_SECRET!,
-      refresh_token: cfg.google_refresh_token,
+      refresh_token: refreshToken,
       grant_type: "refresh_token",
     }),
   });
@@ -178,7 +211,9 @@ export async function getGoogleSetupStatus(): Promise<GoogleSetupStatus> {
   return {
     oauthConfigured: isOAuthConfigured(),
     connectedEmail: cfg.google_email,
-    hasRefreshToken: Boolean(cfg.google_refresh_token),
+    hasRefreshToken: Boolean(
+      cfg.google_refresh_token || process.env.GOOGLE_REFRESH_TOKEN
+    ),
     spreadsheetId: cfg.google_spreadsheet_id || DEFAULT_SPREADSHEET_ID || null,
     appsScriptUrl:
       cfg.google_apps_script_url || process.env.GOOGLE_APPS_SCRIPT_URL || null,
@@ -202,25 +237,52 @@ export async function createCongressSpreadsheet(title?: string): Promise<{
   const docTitle =
     title?.trim() || "Congreso FIA UAM 2026 - Registro Oficial";
 
-  const createRes = await fetch("https://sheets.googleapis.com/v4/spreadsheets", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      properties: {
-        title: docTitle,
-        timeZone: "America/Managua",
+  const createRes = await fetch(
+    "https://sheets.googleapis.com/v4/spreadsheets",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
       },
-      sheets: [
-        { properties: { sheetId: 0, title: SHEET_NAMES.students, gridProperties: { frozenRowCount: 1 } } },
-        { properties: { sheetId: 1, title: SHEET_NAMES.sponsors, gridProperties: { frozenRowCount: 1 } } },
-        { properties: { sheetId: 2, title: SHEET_NAMES.teachers, gridProperties: { frozenRowCount: 1 } } },
-        { properties: { sheetId: 3, title: SHEET_NAMES.guests, gridProperties: { frozenRowCount: 1 } } },
-      ],
-    }),
-  });
+      body: JSON.stringify({
+        properties: {
+          title: docTitle,
+          timeZone: "America/Managua",
+        },
+        sheets: [
+          {
+            properties: {
+              sheetId: 0,
+              title: SHEET_NAMES.students,
+              gridProperties: { frozenRowCount: 1 },
+            },
+          },
+          {
+            properties: {
+              sheetId: 1,
+              title: SHEET_NAMES.sponsors,
+              gridProperties: { frozenRowCount: 1 },
+            },
+          },
+          {
+            properties: {
+              sheetId: 2,
+              title: SHEET_NAMES.teachers,
+              gridProperties: { frozenRowCount: 1 },
+            },
+          },
+          {
+            properties: {
+              sheetId: 3,
+              title: SHEET_NAMES.guests,
+              gridProperties: { frozenRowCount: 1 },
+            },
+          },
+        ],
+      }),
+    }
+  );
 
   if (!createRes.ok) {
     const err = await createRes.text();
@@ -232,9 +294,15 @@ export async function createCongressSpreadsheet(title?: string): Promise<{
     spreadsheetUrl: string;
   };
 
-  // Populate headers + 23 sample companies in Sheet 2 column F + checkboxes on Sheet 1
   const sponsorsRows: string[][] = [
-    ["Empresa", "Nombre", "Apellido", "Fecha/Hora Registro", "", "Lista_Empresas (23 de prueba - Editar aquí)"],
+    [
+      "Empresa",
+      "Nombre",
+      "Apellido",
+      "Fecha/Hora Registro",
+      "",
+      "Lista_Empresas (Editar aquí)",
+    ],
     ...DEFAULT_COMPANIES.map((c) => ["", "", "", "", "", c]),
   ];
 
@@ -251,7 +319,15 @@ export async function createCongressSpreadsheet(title?: string): Promise<{
         data: [
           {
             range: `${SHEET_NAMES.students}!A1:E1`,
-            values: [["CIF", "Nombre Completo", "Carrera", "Check", "Fecha/Hora Registro"]],
+            values: [
+              [
+                "CIF",
+                "Nombre Completo",
+                "Carrera",
+                "Check",
+                "Fecha/Hora Registro",
+              ],
+            ],
           },
           {
             range: `${SHEET_NAMES.sponsors}!A1:F${sponsorsRows.length}`,
@@ -270,41 +346,6 @@ export async function createCongressSpreadsheet(title?: string): Promise<{
     }
   );
 
-  // Apply UAM header colors & boolean checkboxes
-  await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${created.spreadsheetId}:batchUpdate`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        requests: [
-          ...[0, 1, 2, 3].map((sheetId) => ({
-            repeatCell: {
-              range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 6 },
-              cell: {
-                userEnteredFormat: {
-                  backgroundColor: { red: 0, green: 0.23, blue: 0.44 },
-                  textFormat: { foregroundColor: { red: 1, green: 1, blue: 1 }, bold: true },
-                  horizontalAlignment: "CENTER",
-                },
-              },
-              fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)",
-            },
-          })),
-          {
-            setDataValidation: {
-              range: { sheetId: 0, startRowIndex: 1, endRowIndex: 600, startColumnIndex: 3, endColumnIndex: 4 },
-              rule: { condition: { type: "BOOLEAN" }, showCustomUi: true, strict: true },
-            },
-          },
-        ],
-      }),
-    }
-  );
-
   await setConfigValue("google_spreadsheet_id", created.spreadsheetId);
   return {
     spreadsheetId: created.spreadsheetId,
@@ -312,14 +353,178 @@ export async function createCongressSpreadsheet(title?: string): Promise<{
   };
 }
 
-// ---------- Pull Students & Companies from Google Sheets ----------
+// ---------- Helper: Parse Raw Sheet Rows into Structured Models ----------
+
+function applyParsedSheetData(
+  studentRows: string[][],
+  sponsorRows: string[][],
+  teacherRows: string[][],
+  guestRows: string[][]
+) {
+  const studentsMap = new Map<
+    string,
+    {
+      cif: string;
+      fullName: string;
+      career: string;
+      checkedIn: boolean;
+      checkedInAt: string | null;
+      sheetRow: number;
+    }
+  >();
+
+  studentRows.forEach((row, idx) => {
+    const sheetRow = idx + 2;
+    const rawCif = String(row[0] || "").trim();
+    const fullName = String(row[1] || "").trim();
+    const career = String(row[2] || "").trim() || "Ingeniería Industrial";
+    const rawCheck = String(row[3] || "").trim().toUpperCase();
+    const checkedIn =
+      rawCheck === "TRUE" ||
+      rawCheck === "1" ||
+      rawCheck === "SI" ||
+      rawCheck === "✓";
+    const checkedInAt = row[4] ? parseSheetDateToIso(String(row[4]), idx) : null;
+
+    if (!rawCif && !fullName) return;
+    const cif = rawCif || `SIN-CIF-${sheetRow}`;
+    studentsMap.set(cif, {
+      cif,
+      fullName: fullName || `Estudiante ${cif}`,
+      career,
+      checkedIn,
+      checkedInAt,
+      sheetRow,
+    });
+  });
+
+  const parsedStudents = Array.from(studentsMap.values());
+
+  const parsedCompanies = sponsorRows
+    .map((row) => String(row[5] || "").trim())
+    .filter((name) => name.length > 0);
+
+  const parsedRegistrations: Array<{
+    id: string;
+    category: RegistrationCategory;
+    company?: string | null;
+    firstName: string;
+    lastName: string;
+    career?: string | null;
+    createdAt: string;
+  }> = [];
+
+  sponsorRows.forEach((row, idx) => {
+    const company = String(row[0] || "").trim();
+    const firstName = String(row[1] || "").trim();
+    const lastName = String(row[2] || "").trim();
+    const rawDate = String(row[3] || "").trim();
+    if (company && (firstName || lastName)) {
+      parsedRegistrations.push({
+        id: `sheet-sponsor-${idx + 2}`,
+        category: "sponsor",
+        company,
+        firstName: firstName || "-",
+        lastName: lastName || "-",
+        career: null,
+        createdAt: parseSheetDateToIso(rawDate, idx),
+      });
+    }
+  });
+
+  teacherRows.forEach((row, idx) => {
+    const firstName = String(row[0] || "").trim();
+    const lastName = String(row[1] || "").trim();
+    const career = String(row[2] || "").trim() || "Ingeniería Industrial";
+    const rawDate = String(row[3] || "").trim();
+    if (firstName || lastName) {
+      parsedRegistrations.push({
+        id: `sheet-teacher-${idx + 2}`,
+        category: "teacher",
+        company: null,
+        firstName: firstName || "-",
+        lastName: lastName || "-",
+        career,
+        createdAt: parseSheetDateToIso(rawDate, idx),
+      });
+    }
+  });
+
+  guestRows.forEach((row, idx) => {
+    const firstName = String(row[0] || "").trim();
+    const lastName = String(row[1] || "").trim();
+    const rawDate = String(row[2] || "").trim();
+    if (firstName || lastName) {
+      parsedRegistrations.push({
+        id: `sheet-guest-${idx + 2}`,
+        category: "guest",
+        company: null,
+        firstName: firstName || "-",
+        lastName: lastName || "-",
+        career: null,
+        createdAt: parseSheetDateToIso(rawDate, idx),
+      });
+    }
+  });
+
+  return { parsedStudents, parsedCompanies, parsedRegistrations };
+}
+
+async function fetchSheetTabViaPublicGviz(
+  spreadsheetId: string,
+  sheetName: string
+): Promise<string[][] | null> {
+  try {
+    const url = `https://docs.google.com/spreadsheets/d/${encodeURIComponent(
+      spreadsheetId
+    )}/gviz/tq?tqx=out:json&headers=1&sheet=${encodeURIComponent(sheetName)}`;
+    const res = await fetch(url, {
+      cache: "no-store",
+      redirect: "follow",
+    });
+    if (!res.ok) return null;
+    const text = await res.text();
+    if (!text.includes("google.visualization.Query.setResponse")) {
+      return null;
+    }
+    const start = text.indexOf("{");
+    const end = text.lastIndexOf("}");
+    if (start === -1 || end === -1) return null;
+
+    const json = JSON.parse(text.slice(start, end + 1)) as {
+      status?: string;
+      table?: {
+        rows?: Array<{
+          c?: Array<{ v?: unknown; f?: string } | null>;
+        }>;
+      };
+    };
+
+    if (json.status === "error" || !json.table?.rows) return null;
+
+    return json.table.rows.map((r) =>
+      (r.c || []).map((cell) => {
+        if (!cell) return "";
+        if (typeof cell.v === "boolean") return cell.v ? "TRUE" : "FALSE";
+        if (cell.f !== undefined && cell.f !== null) return String(cell.f);
+        if (cell.v !== undefined && cell.v !== null) return String(cell.v);
+        return "";
+      })
+    );
+  } catch {
+    return null;
+  }
+}
+
+// ---------- Pull Students, Companies & Registrations from Google Sheets ----------
 
 export async function pullFromGoogleSheets(): Promise<{
   studentsImported: number;
   companiesImported: number;
+  registrationsImported?: number;
 }> {
   const status = await getGoogleSetupStatus();
-  const spreadsheetId = status.spreadsheetId;
+  const spreadsheetId = status.spreadsheetId || DEFAULT_SPREADSHEET_ID;
 
   // Option 1: Apps Script Bridge
   if (status.appsScriptUrl && !status.hasRefreshToken) {
@@ -339,6 +544,15 @@ export async function pullFromGoogleSheets(): Promise<{
         sheetRow: number;
       }>;
       companies?: string[];
+      registrations?: Array<{
+        id: string;
+        category: RegistrationCategory;
+        company?: string | null;
+        firstName: string;
+        lastName: string;
+        career?: string | null;
+        createdAt: string;
+      }>;
     };
     const sCount = data.students
       ? await upsertStudentsFromSheet(
@@ -351,76 +565,106 @@ export async function pullFromGoogleSheets(): Promise<{
     const cCount = data.companies
       ? await replaceCompaniesFromSheet(data.companies)
       : 0;
+    const rCount = data.registrations
+      ? await reconcileRegistrationsFromSheet(data.registrations)
+      : 0;
     await setConfigValue("google_last_pull_at", new Date().toISOString());
-    return { studentsImported: sCount, companiesImported: cCount };
+    notifyDashboardUpdate();
+    return {
+      studentsImported: sCount,
+      companiesImported: cCount,
+      registrationsImported: rCount,
+    };
   }
 
   // Option 2: Direct Google Sheets OAuth API
-  const token = await getValidAccessToken();
-  if (!token || !spreadsheetId) {
-    throw new Error(
-      "No hay conexión activa con Google Sheets. Conecta tu cuenta OAuth o configura la URL de Apps Script."
+  const token = await getValidAccessToken().catch(() => null);
+  if (token && spreadsheetId) {
+    const ranges = [
+      `${SHEET_NAMES.students}!A2:E`,
+      `${SHEET_NAMES.sponsors}!A2:F`,
+      `${SHEET_NAMES.teachers}!A2:D`,
+      `${SHEET_NAMES.guests}!A2:C`,
+    ]
+      .map((r) => `ranges=${encodeURIComponent(r)}`)
+      .join("&");
+
+    const res = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchGet?${ranges}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+      }
     );
-  }
 
-  const ranges = [
-    `${SHEET_NAMES.students}!A2:E`,
-    `${SHEET_NAMES.sponsors}!F2:F`,
-  ]
-    .map((r) => `ranges=${encodeURIComponent(r)}`)
-    .join("&");
-
-  const res = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values:batchGet?${ranges}`,
-    {
-      headers: { Authorization: `Bearer ${token}` },
-      cache: "no-store",
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(`Error leyendo Google Sheets: ${err}`);
     }
-  );
 
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`Error leyendo Google Sheets: ${err}`);
+    const body = (await res.json()) as {
+      valueRanges: Array<{ values?: string[][] }>;
+    };
+
+    const { parsedStudents, parsedCompanies, parsedRegistrations } =
+      applyParsedSheetData(
+        body.valueRanges[0]?.values || [],
+        body.valueRanges[1]?.values || [],
+        body.valueRanges[2]?.values || [],
+        body.valueRanges[3]?.values || []
+      );
+
+    const studentsImported = await upsertStudentsFromSheet(parsedStudents);
+    const companiesImported =
+      parsedCompanies.length > 0
+        ? await replaceCompaniesFromSheet(parsedCompanies)
+        : 0;
+    const registrationsImported =
+      await reconcileRegistrationsFromSheet(parsedRegistrations);
+
+    await setConfigValue("google_last_pull_at", new Date().toISOString());
+    notifyDashboardUpdate();
+    return { studentsImported, companiesImported, registrationsImported };
   }
 
-  const body = (await res.json()) as {
-    valueRanges: Array<{ values?: string[][] }>;
-  };
+  // Option 3: Public Google Sheet GViz Live Reader (works when sheet has link viewing enabled)
+  if (spreadsheetId) {
+    const [sRows, pRows, tRows, gRows] = await Promise.all([
+      fetchSheetTabViaPublicGviz(spreadsheetId, SHEET_NAMES.students),
+      fetchSheetTabViaPublicGviz(spreadsheetId, SHEET_NAMES.sponsors),
+      fetchSheetTabViaPublicGviz(spreadsheetId, SHEET_NAMES.teachers),
+      fetchSheetTabViaPublicGviz(spreadsheetId, SHEET_NAMES.guests),
+    ]);
 
-  const studentRows = body.valueRanges[0]?.values || [];
-  const companyRows = body.valueRanges[1]?.values || [];
+    if (sRows || pRows) {
+      const { parsedStudents, parsedCompanies, parsedRegistrations } =
+        applyParsedSheetData(
+          sRows || [],
+          pRows || [],
+          tRows || [],
+          gRows || []
+        );
 
-  const parsedStudents = studentRows
-    .map((row, idx) => {
-      const cif = String(row[0] || "").trim();
-      const fullName = String(row[1] || "").trim();
-      const career = String(row[2] || "").trim();
-      const rawCheck = String(row[3] || "").trim().toUpperCase();
-      const checkedIn = rawCheck === "TRUE" || rawCheck === "1" || rawCheck === "SI" || rawCheck === "✓";
-      const checkedInAt = row[4] ? String(row[4]).trim() : null;
-      return {
-        cif,
-        fullName,
-        career: career || "Ingeniería Industrial",
-        checkedIn,
-        checkedInAt,
-        sheetRow: idx + 2,
-      };
-    })
-    .filter((s) => s.cif.length > 0 && s.fullName.length > 0);
+      const studentsImported =
+        parsedStudents.length > 0
+          ? await upsertStudentsFromSheet(parsedStudents)
+          : 0;
+      const companiesImported =
+        parsedCompanies.length > 0
+          ? await replaceCompaniesFromSheet(parsedCompanies)
+          : 0;
+      const registrationsImported =
+        await reconcileRegistrationsFromSheet(parsedRegistrations);
 
-  const parsedCompanies = companyRows
-    .map((row) => String(row[0] || "").trim())
-    .filter((name) => name.length > 0);
+      await setConfigValue("google_last_pull_at", new Date().toISOString());
+      notifyDashboardUpdate();
+      return { studentsImported, companiesImported, registrationsImported };
+    }
+  }
 
-  const studentsImported = await upsertStudentsFromSheet(parsedStudents);
-  const companiesImported =
-    parsedCompanies.length > 0
-      ? await replaceCompaniesFromSheet(parsedCompanies)
-      : 0;
-
-  await setConfigValue("google_last_pull_at", new Date().toISOString());
-  return { studentsImported, companiesImported };
+  throw new Error(
+    "Para sincronizar en vivo desde el Google Sheet, comparte el documento como 'Cualquier persona con el enlace (Lector)' o conecta tu cuenta en /admin/google-setup."
+  );
 }
 
 // ---------- Batch Sync Queue to Google Sheets (Rate-Limit Safe) ----------
@@ -428,6 +672,8 @@ export async function pullFromGoogleSheets(): Promise<{
 const globalSyncLock = globalThis as unknown as {
   __fiaSyncInFlight?: Promise<SyncResult> | null;
   __fiaSyncTimer?: NodeJS.Timeout | null;
+  __fiaLastAutoPullAt?: number;
+  __fiaAutoPullInFlight?: Promise<void> | null;
 };
 
 export interface SyncResult {
@@ -516,7 +762,8 @@ export async function syncPendingToGoogleSheets(): Promise<SyncResult> {
       return {
         syncedStudents: 0,
         syncedRegistrations: 0,
-        skippedReason: "Google Sheets OAuth no conectado aún (datos guardados en BD local/nube).",
+        skippedReason:
+          "Google Sheets OAuth / Apps Script no conectado aún para escritura (datos guardados en BD).",
       };
     }
 
@@ -587,9 +834,15 @@ export async function syncPendingToGoogleSheets(): Promise<SyncResult> {
       }
 
       // 2. Append sponsors, teachers, guests (1 API call per sheet)
-      const sponsors = pending.registrations.filter((r) => r.category === "sponsor");
-      const teachers = pending.registrations.filter((r) => r.category === "teacher");
-      const guests = pending.registrations.filter((r) => r.category === "guest");
+      const sponsors = pending.registrations.filter(
+        (r) => r.category === "sponsor"
+      );
+      const teachers = pending.registrations.filter(
+        (r) => r.category === "teacher"
+      );
+      const guests = pending.registrations.filter(
+        (r) => r.category === "guest"
+      );
 
       const appendGroup = async (
         sheetName: string,
@@ -659,7 +912,8 @@ export async function syncPendingToGoogleSheets(): Promise<SyncResult> {
       await setConfigValue("google_last_sync_error", "");
       return { syncedStudents, syncedRegistrations };
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Error sincronizando Sheets";
+      const msg =
+        err instanceof Error ? err.message : "Error sincronizando Sheets";
       await setConfigValue("google_last_sync_error", msg);
       return {
         syncedStudents,
@@ -676,17 +930,42 @@ export async function syncPendingToGoogleSheets(): Promise<SyncResult> {
 }
 
 /**
- * Debounced background sync: coalesces bursts of up to 400 concurrent writes
- * into a single batched Sheets API flush every ~2 seconds.
+ * Ensures the local database is synchronized with the Google Sheet
+ * automatically whenever forms or the dashboard request data (throttled to maxAgeMs).
  */
+export async function ensureFreshSheetData(maxAgeMs = 8000): Promise<void> {
+  const now = Date.now();
+  if (
+    globalSyncLock.__fiaLastAutoPullAt &&
+    now - globalSyncLock.__fiaLastAutoPullAt < maxAgeMs
+  ) {
+    return;
+  }
+
+  if (globalSyncLock.__fiaAutoPullInFlight) {
+    return globalSyncLock.__fiaAutoPullInFlight;
+  }
+
+  const task = (async () => {
+    try {
+      globalSyncLock.__fiaLastAutoPullAt = Date.now();
+      await syncPendingToGoogleSheets().catch(() => null);
+      await pullFromGoogleSheets().catch(() => null);
+    } finally {
+      globalSyncLock.__fiaAutoPullInFlight = null;
+    }
+  })();
+
+  globalSyncLock.__fiaAutoPullInFlight = task;
+  await task;
+}
+
 export function scheduleBackgroundSync() {
   if (globalSyncLock.__fiaSyncTimer) return;
   globalSyncLock.__fiaSyncTimer = setTimeout(() => {
     globalSyncLock.__fiaSyncTimer = null;
     void syncPendingToGoogleSheets();
-  }, 1500);
+  }, 800);
 }
 
-// Keep unused import check happy if needed
 export { getConfigValue };
-

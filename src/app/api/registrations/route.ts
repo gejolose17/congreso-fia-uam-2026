@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { FIA_CAREERS } from "@/lib/constants";
 import { createRegistration } from "@/lib/db";
 import { notifyDashboardUpdate } from "@/lib/events";
-import { scheduleBackgroundSync } from "@/lib/google";
+import { syncPendingToGoogleSheets } from "@/lib/google";
 import type { RegistrationCategory } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -62,8 +62,8 @@ export async function POST(req: NextRequest) {
       career: category === "teacher" ? career : null,
     });
 
+    await syncPendingToGoogleSheets().catch(() => null);
     notifyDashboardUpdate();
-    scheduleBackgroundSync();
 
     return NextResponse.json({ ok: true, registration }, { status: 201 });
   } catch (err) {
@@ -74,4 +74,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
