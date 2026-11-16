@@ -377,7 +377,10 @@ function applyParsedSheetData(
     const sheetRow = idx + 2;
     const rawCif = String(row[0] || "").trim();
     const fullName = String(row[1] || "").trim();
-    const career = String(row[2] || "").trim() || "Ingeniería Industrial";
+    let career = String(row[2] || "").trim() || "Ingeniería Industrial";
+    if (career.toLowerCase().includes("sistemas")) {
+      career = "Ingeniería en Sistemas";
+    }
     const rawCheck = String(row[3] || "").trim().toUpperCase();
     const checkedIn =
       rawCheck === "TRUE" ||
@@ -388,14 +391,27 @@ function applyParsedSheetData(
 
     if (!rawCif && !fullName) return;
     const cif = rawCif || `SIN-CIF-${sheetRow}`;
-    studentsMap.set(cif, {
-      cif,
-      fullName: fullName || `Estudiante ${cif}`,
-      career,
-      checkedIn,
-      checkedInAt,
-      sheetRow,
-    });
+
+    const existing = studentsMap.get(cif);
+    if (existing) {
+      studentsMap.set(cif, {
+        cif,
+        fullName: fullName.length > existing.fullName.length ? fullName : existing.fullName,
+        career: career || existing.career,
+        checkedIn: existing.checkedIn || checkedIn,
+        checkedInAt: existing.checkedInAt || checkedInAt,
+        sheetRow: checkedIn ? sheetRow : existing.sheetRow,
+      });
+    } else {
+      studentsMap.set(cif, {
+        cif,
+        fullName: fullName || `Estudiante ${cif}`,
+        career,
+        checkedIn,
+        checkedInAt,
+        sheetRow,
+      });
+    }
   });
 
   const parsedStudents = Array.from(studentsMap.values());
@@ -774,10 +790,9 @@ export async function syncPendingToGoogleSheets(): Promise<SyncResult> {
     try {
       // 1. Batch-update student checkboxes in 1 single API call
       if (pending.students.length > 0) {
-        const missingRowStudents = pending.students.filter((s) => !s.sheetRow);
         const resolvedRows = new Map<string, number>();
 
-        if (missingRowStudents.length > 0) {
+        try {
           const cifColRes = await fetch(
             `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(
               `${SHEET_NAMES.students}!A2:A`
@@ -792,6 +807,8 @@ export async function syncPendingToGoogleSheets(): Promise<SyncResult> {
               if (val) resolvedRows.set(val, idx + 2);
             });
           }
+        } catch {
+          // fallback to stored sheetRow if column fetch fails
         }
 
         const batchData: Array<{ range: string; values: unknown[][] }> = [];

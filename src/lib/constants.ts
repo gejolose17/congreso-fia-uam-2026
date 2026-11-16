@@ -2,6 +2,7 @@ export const FIA_CAREERS = [
   "Ingeniería Industrial",
   "Ingeniería Civil",
   "Arquitectura",
+  "Ingeniería en Sistemas",
 ] as const;
 
 export type FiaCareer = (typeof FIA_CAREERS)[number];
@@ -17,7 +18,13 @@ export const DEFAULT_SPREADSHEET_ID =
   process.env.GOOGLE_SPREADSHEET_ID ||
   "1LIg8NUKe-Iznb_tVulvpQywh0sUzIWc49jhkRIg-K-E";
 
-export const DEFAULT_STUDENTS = [
+export const DEFAULT_STUDENTS: Array<{
+  cif: string;
+  fullName: string;
+  career: string;
+  checkedIn: boolean;
+  sheetRow: number;
+}> = [
   {
     "cif": "23021590",
     "fullName": "Adriana Alexandra Ruiz Valverde",
@@ -404,7 +411,7 @@ export const DEFAULT_STUDENTS = [
     "sheetRow": 56
   },
   {
-    "cif": "SIN-CIF-57",
+    "cif": "25011650",
     "fullName": "Britney Victoria López Valverde",
     "career": "Arquitectura",
     "checkedIn": false,
@@ -769,10 +776,10 @@ export const DEFAULT_STUDENTS = [
   },
   {
     "cif": "22010045",
-    "fullName": "Esteban Franco Alfaro",
+    "fullName": "Estaban Franco Alfaro",
     "career": "Ingeniería Civil",
     "checkedIn": false,
-    "sheetRow": 110
+    "sheetRow": 109
   },
   {
     "cif": "19011900",
@@ -992,7 +999,7 @@ export const DEFAULT_STUDENTS = [
     "sheetRow": 141
   },
   {
-    "cif": "2302119",
+    "cif": "23021192",
     "fullName": "Handly Alexander Leiva Lopéz",
     "career": "Arquitectura",
     "checkedIn": false,
@@ -1027,7 +1034,7 @@ export const DEFAULT_STUDENTS = [
     "sheetRow": 146
   },
   {
-    "cif": "SIN-CIF-147",
+    "cif": "25012244",
     "fullName": "Hollmer Alejandro García Delgado",
     "career": "Arquitectura",
     "checkedIn": false,
@@ -1532,10 +1539,10 @@ export const DEFAULT_STUDENTS = [
   },
   {
     "cif": "25011535",
-    "fullName": "Lucia Nathalia Hermida Gutiérrez",
+    "fullName": "Lucia Nathalia Hermida Gutierrez",
     "career": "Ingeniería Civil",
     "checkedIn": false,
-    "sheetRow": 220
+    "sheetRow": 219
   },
   {
     "cif": "22020782",
@@ -1552,7 +1559,7 @@ export const DEFAULT_STUDENTS = [
     "sheetRow": 222
   },
   {
-    "cif": "SIN-CIF-223",
+    "cif": "23010186",
     "fullName": "Luis Enrique Vega Aleman",
     "career": "Ingeniería Industrial",
     "checkedIn": false,
@@ -1573,7 +1580,7 @@ export const DEFAULT_STUDENTS = [
     "sheetRow": 225
   },
   {
-    "cif": "SIN-CIF-226",
+    "cif": "25014732",
     "fullName": "Marcela Victoria Rivera Jiron",
     "career": "Arquitectura",
     "checkedIn": false,
@@ -1615,610 +1622,610 @@ export const DEFAULT_STUDENTS = [
     "sheetRow": 231
   },
   {
-    "cif": "SIN-CIF-232",
-    "fullName": "Maria Eduarda Oconnor Rodriguez",
-    "career": "Ingeniería Industrial",
-    "checkedIn": false,
-    "sheetRow": 232
-  },
-  {
     "cif": "24010849",
     "fullName": "María Fernanda Almendarez Guzmán",
     "career": "Ingeniería Industrial",
     "checkedIn": false,
-    "sheetRow": 233
+    "sheetRow": 232
   },
   {
     "cif": "21011608",
     "fullName": "María Fernanda López Salmerón",
     "career": "Ingeniería Civil",
     "checkedIn": false,
-    "sheetRow": 234
+    "sheetRow": 233
   },
   {
     "cif": "22020822",
     "fullName": "María Gabriela Altamirano Baldizón",
     "career": "Ingeniería Civil",
     "checkedIn": false,
-    "sheetRow": 235
+    "sheetRow": 234
   },
   {
     "cif": "22020084",
     "fullName": "Maria Gabriela Jarquín Parrillas",
     "career": "Arquitectura",
     "checkedIn": false,
-    "sheetRow": 236
+    "sheetRow": 235
   },
   {
     "cif": "25014311",
     "fullName": "María Guadalupe Moreno González",
     "career": "Arquitectura",
     "checkedIn": false,
-    "sheetRow": 237
+    "sheetRow": 236
   },
   {
     "cif": "23012239",
     "fullName": "María Isabel Domínguez Garay",
     "career": "Arquitectura",
     "checkedIn": false,
-    "sheetRow": 238
+    "sheetRow": 237
   },
   {
     "cif": "23011383",
     "fullName": "María José Hurtado Pérez",
     "career": "Arquitectura",
     "checkedIn": false,
-    "sheetRow": 239
+    "sheetRow": 238
   },
   {
     "cif": "24011021",
     "fullName": "María José Miranda Rodríguez",
     "career": "Arquitectura",
     "checkedIn": false,
-    "sheetRow": 240
+    "sheetRow": 239
   },
   {
     "cif": "22020832",
     "fullName": "Maria Marcela Lindo Velázquez",
     "career": "Arquitectura",
     "checkedIn": false,
-    "sheetRow": 241
+    "sheetRow": 240
   },
   {
     "cif": "23020394",
     "fullName": "Maria Nathalia Soza Carvallo",
     "career": "Ingeniería Industrial",
     "checkedIn": false,
-    "sheetRow": 242
+    "sheetRow": 241
   },
   {
     "cif": "22021265",
     "fullName": "Mariana Vásquez Vado",
     "career": "Arquitectura",
     "checkedIn": false,
-    "sheetRow": 243
+    "sheetRow": 242
   },
   {
     "cif": "23020434",
     "fullName": "Mariángeles Martínez Martínez",
     "career": "Ingeniería Industrial",
     "checkedIn": false,
-    "sheetRow": 244
+    "sheetRow": 243
   },
   {
     "cif": "22020847",
     "fullName": "Mariangeles Morales Meneses",
     "career": "Arquitectura",
     "checkedIn": false,
-    "sheetRow": 245
+    "sheetRow": 244
   },
   {
     "cif": "22020528",
     "fullName": "Mariangeles Valeska Cabezas Espinoza",
     "career": "Ingeniería Industrial",
     "checkedIn": false,
-    "sheetRow": 246
+    "sheetRow": 245
   },
   {
     "cif": "18010898",
     "fullName": "Mariano Eli Baldizon Rodriguez",
     "career": "Ingeniería Civil",
     "checkedIn": false,
-    "sheetRow": 247
+    "sheetRow": 246
   },
   {
     "cif": "23011111",
     "fullName": "Mariel José López Pavón",
     "career": "Arquitectura",
     "checkedIn": false,
-    "sheetRow": 248
+    "sheetRow": 247
   },
   {
     "cif": "24011131",
     "fullName": "Marilyn Del Carmen Mejía Escobar",
     "career": "Arquitectura",
     "checkedIn": false,
-    "sheetRow": 249
+    "sheetRow": 248
   },
   {
     "cif": "23010248",
     "fullName": "Marisabel Ruíz Herrera",
     "career": "Arquitectura",
     "checkedIn": false,
-    "sheetRow": 250
+    "sheetRow": 249
   },
   {
     "cif": "24010945",
     "fullName": "Marlon Adrian Laguna Bonilla",
     "career": "Arquitectura",
     "checkedIn": false,
-    "sheetRow": 251
+    "sheetRow": 250
   },
   {
     "cif": "25010344",
     "fullName": "Marlon Ibrahim Muñoz Silwany",
     "career": "Ingeniería Civil",
     "checkedIn": false,
-    "sheetRow": 252
+    "sheetRow": 251
   },
   {
     "cif": "23021080",
     "fullName": "Martha Nohelia Pomares Monjarret",
     "career": "Ingeniería Industrial",
     "checkedIn": false,
-    "sheetRow": 253
+    "sheetRow": 252
   },
   {
     "cif": "22010387",
     "fullName": "Maximo Daniel Alvarado Lopez",
     "career": "Ingeniería Industrial",
     "checkedIn": false,
-    "sheetRow": 254
+    "sheetRow": 253
   },
   {
     "cif": "23010329",
     "fullName": "Mayela Isabel Medrano Alvarado",
     "career": "Ingeniería Industrial",
     "checkedIn": false,
-    "sheetRow": 255
+    "sheetRow": 254
   },
   {
     "cif": "19014706",
     "fullName": "Mayling Gabriela Siles Medina",
     "career": "Ingeniería Civil",
     "checkedIn": false,
-    "sheetRow": 256
+    "sheetRow": 255
   },
   {
     "cif": "22021219",
     "fullName": "Miguel Ángel Soza Novoa",
     "career": "Arquitectura",
     "checkedIn": false,
-    "sheetRow": 257
+    "sheetRow": 256
   },
   {
     "cif": "24010484",
     "fullName": "Monica Del Carmen Torres Barrios",
     "career": "Ingeniería Industrial",
     "checkedIn": false,
-    "sheetRow": 258
+    "sheetRow": 257
   },
   {
     "cif": "19014194",
     "fullName": "Narciso Salvador Granja Henrique",
     "career": "Ingeniería Civil",
     "checkedIn": false,
-    "sheetRow": 259
+    "sheetRow": 258
   },
   {
     "cif": "23020370",
     "fullName": "Natalia Marcela Montiel Jirón",
     "career": "Ingeniería Industrial",
     "checkedIn": false,
-    "sheetRow": 260
+    "sheetRow": 259
   },
   {
     "cif": "23021022",
     "fullName": "Nathalie Michelle Zamora Moreno",
     "career": "Ingeniería Civil",
     "checkedIn": false,
-    "sheetRow": 261
+    "sheetRow": 260
   },
   {
     "cif": "24010424",
     "fullName": "Nayelis Ivell Alvarado Calero",
     "career": "Arquitectura",
     "checkedIn": false,
-    "sheetRow": 262
+    "sheetRow": 261
   },
   {
     "cif": "25011785",
     "fullName": "Neiyeling Aileen González Rodríguez",
     "career": "Arquitectura",
     "checkedIn": false,
-    "sheetRow": 263
+    "sheetRow": 262
   },
   {
-    "cif": "SIN-CIF-264",
+    "cif": "24010112",
     "fullName": "Nicolais Palacios Melgara",
     "career": "Arquitectura",
     "checkedIn": false,
-    "sheetRow": 264
+    "sheetRow": 263
   },
   {
     "cif": "23021669",
     "fullName": "Nikoll Yaritza Martinez Bosquez",
     "career": "Arquitectura",
     "checkedIn": false,
-    "sheetRow": 265
+    "sheetRow": 264
   },
   {
     "cif": "23021419",
     "fullName": "Nora Lucía Báez Meza",
     "career": "Arquitectura",
     "checkedIn": false,
-    "sheetRow": 266
+    "sheetRow": 265
   },
   {
     "cif": "22021208",
     "fullName": "Novis Emanuel Rosales Blandón",
     "career": "Ingeniería Civil",
     "checkedIn": false,
-    "sheetRow": 267
+    "sheetRow": 266
   },
   {
     "cif": "22020050",
     "fullName": "Noxtli Daraly Meneses Garcia",
     "career": "Arquitectura",
     "checkedIn": false,
-    "sheetRow": 268
+    "sheetRow": 267
   },
   {
     "cif": "22020848",
     "fullName": "Oliva Barahona Erick Daniel",
     "career": "Ingeniería Industrial",
     "checkedIn": false,
-    "sheetRow": 269
+    "sheetRow": 268
   },
   {
     "cif": "23011093",
     "fullName": "Omar Eli Morales Lopez",
     "career": "Ingeniería Industrial",
     "checkedIn": false,
-    "sheetRow": 270
+    "sheetRow": 269
   },
   {
     "cif": "24010760",
     "fullName": "Onell Corea Gutiérrez",
     "career": "Ingeniería Civil",
     "checkedIn": false,
-    "sheetRow": 271
+    "sheetRow": 270
   },
   {
     "cif": "22020833",
     "fullName": "Paola Mercedes Bendaña Carrillo",
     "career": "Arquitectura",
     "checkedIn": false,
-    "sheetRow": 272
+    "sheetRow": 271
   },
   {
     "cif": "25012763",
     "fullName": "Pedro Xavier Reyes González",
     "career": "Ingeniería Industrial",
     "checkedIn": false,
-    "sheetRow": 273
+    "sheetRow": 272
   },
   {
-    "cif": "SIN-CIF-274",
+    "cif": "24013337",
     "fullName": "Rashell Rebeca Dávila Rodríguez",
     "career": "Arquitectura",
     "checkedIn": false,
-    "sheetRow": 274
+    "sheetRow": 273
   },
   {
     "cif": "23021392",
     "fullName": "Regina Ninoska Vega Solís",
     "career": "Arquitectura",
     "checkedIn": false,
-    "sheetRow": 275
+    "sheetRow": 274
   },
   {
     "cif": "25011898",
     "fullName": "Renata Yamileth Lorio Sanchez",
     "career": "Ingeniería Industrial",
     "checkedIn": false,
-    "sheetRow": 276
+    "sheetRow": 275
   },
   {
     "cif": "24010574",
     "fullName": "Ricardo José Baldizón López",
     "career": "Ingeniería Civil",
     "checkedIn": false,
-    "sheetRow": 277
+    "sheetRow": 276
   },
   {
     "cif": "22020426",
     "fullName": "Ricardo Noel Marin Amador",
     "career": "Ingeniería Industrial",
     "checkedIn": false,
-    "sheetRow": 278
+    "sheetRow": 277
   },
   {
     "cif": "23010155",
     "fullName": "Rigoberto De Jesus Gutierrez Canales",
     "career": "Ingeniería Industrial",
     "checkedIn": false,
-    "sheetRow": 279
+    "sheetRow": 278
   },
   {
     "cif": "22021162",
     "fullName": "Roberto Carlos Morales Artiles",
     "career": "Ingeniería Industrial",
     "checkedIn": false,
-    "sheetRow": 280
+    "sheetRow": 279
   },
   {
     "cif": "22021151",
     "fullName": "Rodrigo Lafuente Zapata",
     "career": "Ingeniería Industrial",
     "checkedIn": false,
-    "sheetRow": 281
+    "sheetRow": 280
   },
   {
     "cif": "24013996",
     "fullName": "Róger Alejandro Téllez Quedo",
     "career": "Ingeniería Civil",
     "checkedIn": false,
-    "sheetRow": 282
+    "sheetRow": 281
   },
   {
     "cif": "23010013",
     "fullName": "Roger Jesús Mercado Alonso",
     "career": "Ingeniería Civil",
     "checkedIn": false,
-    "sheetRow": 283
+    "sheetRow": 282
   },
   {
     "cif": "24010746",
     "fullName": "Ronald Antonio Rodríguez Moncada",
     "career": "Ingeniería Civil",
     "checkedIn": false,
-    "sheetRow": 284
+    "sheetRow": 283
   },
   {
     "cif": "23020129",
     "fullName": "Ronald Heberto Silva Rubio",
     "career": "Ingeniería Industrial",
     "checkedIn": false,
-    "sheetRow": 285
+    "sheetRow": 284
   },
   {
     "cif": "23010010",
     "fullName": "Ronald Jose Pio Miranda Vega",
     "career": "Ingeniería Industrial",
     "checkedIn": false,
-    "sheetRow": 286
+    "sheetRow": 285
   },
   {
     "cif": "23021134",
     "fullName": "Rosslyn Gabriela Grande Torres",
     "career": "Arquitectura",
     "checkedIn": false,
-    "sheetRow": 287
+    "sheetRow": 286
   },
   {
     "cif": "22020405",
     "fullName": "Roxana Guadalupe Chavez Reyes",
     "career": "Arquitectura",
     "checkedIn": false,
-    "sheetRow": 288
+    "sheetRow": 287
   },
   {
     "cif": "24012296",
     "fullName": "Sair Antonio Lara García",
     "career": "Ingeniería Civil",
     "checkedIn": false,
-    "sheetRow": 289
+    "sheetRow": 288
   },
   {
     "cif": "24011400",
     "fullName": "Samantha Auxiliadora Zamora Valle",
     "career": "Ingeniería Industrial",
     "checkedIn": false,
-    "sheetRow": 290
+    "sheetRow": 289
   },
   {
     "cif": "24011795",
     "fullName": "Samira Ivett Zelaya Rivas",
     "career": "Ingeniería Civil",
     "checkedIn": false,
-    "sheetRow": 291
+    "sheetRow": 290
   },
   {
     "cif": "26010109",
     "fullName": "Sandra Guadalupe Nuñez Pacheco",
     "career": "Arquitectura",
     "checkedIn": false,
-    "sheetRow": 292
+    "sheetRow": 291
   },
   {
     "cif": "22011555",
     "fullName": "Saraí Johanna Ruiz Cerna",
     "career": "Arquitectura",
     "checkedIn": false,
-    "sheetRow": 293
+    "sheetRow": 292
   },
   {
     "cif": "19011598",
     "fullName": "Saymond Mijail Montoya Blandon",
     "career": "Ingeniería Industrial",
     "checkedIn": false,
-    "sheetRow": 294
+    "sheetRow": 293
   },
   {
     "cif": "24013416",
     "fullName": "Séfora Daniela Zelaya Téllez",
     "career": "Ingeniería Civil",
     "checkedIn": false,
-    "sheetRow": 295
+    "sheetRow": 294
   },
   {
     "cif": "23020826",
     "fullName": "Sherlyn Alexandra Bravo Marenco",
     "career": "Arquitectura",
     "checkedIn": false,
-    "sheetRow": 296
+    "sheetRow": 295
   },
   {
     "cif": "25010024",
     "fullName": "Sidnya Pérez Díaz",
     "career": "Ingeniería Civil",
     "checkedIn": false,
-    "sheetRow": 297
+    "sheetRow": 296
   },
   {
     "cif": "25015849",
     "fullName": "Silvia Mercedes Peréz",
     "career": "Ingeniería Civil",
     "checkedIn": false,
-    "sheetRow": 298
+    "sheetRow": 297
   },
   {
     "cif": "24011114",
     "fullName": "Solki Shayne Slate Hunter",
     "career": "Arquitectura",
     "checkedIn": false,
-    "sheetRow": 299
+    "sheetRow": 298
   },
   {
     "cif": "23020892",
     "fullName": "Sonia Camila Orozco Sevilla",
     "career": "Ingeniería Industrial",
     "checkedIn": false,
-    "sheetRow": 300
+    "sheetRow": 299
   },
   {
     "cif": "22020239",
     "fullName": "Stephane Danae Palma Muñoz",
     "career": "Arquitectura",
     "checkedIn": false,
-    "sheetRow": 301
+    "sheetRow": 300
   },
   {
     "cif": "23010827",
     "fullName": "Thamary Alejandra Reyes Reyes",
     "career": "Arquitectura",
     "checkedIn": false,
-    "sheetRow": 302
+    "sheetRow": 301
   },
   {
     "cif": "24011222",
     "fullName": "Tiffany Roxandra Martínez Alvarez",
     "career": "Ingeniería Industrial",
     "checkedIn": false,
-    "sheetRow": 303
+    "sheetRow": 302
   },
   {
     "cif": "24013312",
     "fullName": "Tzu Chun Chen",
     "career": "Ingeniería Civil",
     "checkedIn": false,
-    "sheetRow": 304
+    "sheetRow": 303
   },
   {
     "cif": "25010819",
     "fullName": "Valeria Alejandra Ortíz González",
     "career": "Ingeniería Civil",
     "checkedIn": false,
-    "sheetRow": 305
+    "sheetRow": 304
   },
   {
     "cif": "23020900",
     "fullName": "Victor Anthony Rostran Mungia",
     "career": "Ingeniería Industrial",
     "checkedIn": false,
-    "sheetRow": 306
+    "sheetRow": 305
   },
   {
     "cif": "24012157",
     "fullName": "Víctor Marcel Alemán Altamirano",
     "career": "Arquitectura",
     "checkedIn": false,
-    "sheetRow": 307
+    "sheetRow": 306
   },
   {
     "cif": "19014895",
     "fullName": "Walter Javier Samuel Casaya Arana",
     "career": "Ingeniería Industrial",
     "checkedIn": false,
-    "sheetRow": 308
+    "sheetRow": 307
   },
   {
     "cif": "23021594",
     "fullName": "Wendy Nazareth Tijerino Morales",
     "career": "Ingeniería Industrial",
     "checkedIn": false,
-    "sheetRow": 309
+    "sheetRow": 308
   },
   {
     "cif": "25014102",
     "fullName": "Wilfredo Sebastián Ruíz Knight",
     "career": "Ingeniería Civil",
     "checkedIn": false,
-    "sheetRow": 310
+    "sheetRow": 309
   },
   {
     "cif": "24010844",
     "fullName": "Wiston Jafeth Meza Mayorga",
     "career": "Arquitectura",
     "checkedIn": false,
-    "sheetRow": 311
+    "sheetRow": 310
   },
   {
     "cif": "23011302",
     "fullName": "Yahir Esteban Mercado",
     "career": "Ingeniería Civil",
     "checkedIn": false,
-    "sheetRow": 312
+    "sheetRow": 311
   },
   {
     "cif": "22021071",
     "fullName": "Yalta Georgina Alegria Loaisiga",
     "career": "Ingeniería Industrial",
     "checkedIn": false,
-    "sheetRow": 313
+    "sheetRow": 312
   },
   {
     "cif": "22020592",
     "fullName": "Yesli Massiel Morales Velásquez",
     "career": "Arquitectura",
     "checkedIn": false,
-    "sheetRow": 314
+    "sheetRow": 313
   },
   {
     "cif": "23021510",
     "fullName": "Yonier Enrique Gonzalez Vargas",
     "career": "Ingeniería Industrial",
     "checkedIn": false,
-    "sheetRow": 315
+    "sheetRow": 314
   },
   {
     "cif": "23021568",
     "fullName": "Yuliana Michell Velásquez Vallecillo",
     "career": "Ingeniería Industrial",
     "checkedIn": false,
-    "sheetRow": 316
+    "sheetRow": 315
   },
   {
     "cif": "24010570",
     "fullName": "Zamira De Los Ángeles Toruño Núñez",
     "career": "Ingeniería Industrial",
     "checkedIn": false,
+    "sheetRow": 316
+  },
+  {
+    "cif": "17071991",
+    "fullName": "Gerardo Marcelo Sandino Reyes UAM",
+    "career": "Ingeniería en Sistemas",
+    "checkedIn": false,
     "sheetRow": 317
   }
 ];
 
-export const DEFAULT_COMPANIES = [
+export const DEFAULT_COMPANIES: string[] = [
   "PANELCONSA",
   "CONCRENIC",
   "INGENIEROS CONSULTORES CENTROAMERICANOS (I.C.C)",

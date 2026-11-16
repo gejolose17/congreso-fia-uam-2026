@@ -121,20 +121,21 @@ function getSqliteDb(): SqliteDb {
     db.exec("DELETE FROM companies");
   }
 
-  // Seed initial real data from constants if empty so the app works immediately out of the box
-  const studentCount = db
-    .prepare("SELECT COUNT(*) as cnt FROM students")
-    .get() as { cnt: number };
-
-  if (studentCount.cnt === 0) {
-    const insertStudent = db.prepare(
-      `INSERT OR IGNORE INTO students (cif, full_name, career, checked_in, checked_in_at, sheet_row, sync_status)
-       VALUES (?, ?, ?, ?, NULL, ?, 'synced')`
-    );
-    for (const s of DEFAULT_STUDENTS) {
-      insertStudent.run(s.cif, s.fullName, s.career, s.checkedIn ? 1 : 0, s.sheetRow);
-    }
+  // Synchronize base students from constants so new students and updated CIFs are always available immediately
+  const upsertStudent = db.prepare(
+    `INSERT INTO students (cif, full_name, career, checked_in, checked_in_at, sheet_row, sync_status)
+     VALUES (?, ?, ?, ?, NULL, ?, 'synced')
+     ON CONFLICT(cif) DO UPDATE SET
+       full_name = excluded.full_name,
+       career = excluded.career,
+       sheet_row = excluded.sheet_row`
+  );
+  for (const s of DEFAULT_STUDENTS) {
+    upsertStudent.run(s.cif, s.fullName, s.career, s.checkedIn ? 1 : 0, s.sheetRow);
   }
+
+  // Clean up legacy placeholder SIN-CIF rows if any exist
+  db.exec("DELETE FROM students WHERE cif LIKE 'SIN-CIF-%' AND sync_status != 'pending'");
 
   const companyCount = db
     .prepare("SELECT COUNT(*) as cnt FROM companies")

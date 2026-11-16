@@ -75,9 +75,17 @@ function doPost(e) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   if (body.students && body.students.length) {
     var sSheet = ss.getSheetByName('1_Estudiantes');
+    var maxRow = sSheet.getLastRow();
+    var cifData = maxRow > 1 ? sSheet.getRange(2, 1, maxRow - 1, 1).getValues() : [];
+    var cifMap = {};
+    for (var i = 0; i < cifData.length; i++) {
+      var c = String(cifData[i][0] || '').trim();
+      if (c) cifMap[c] = i + 2;
+    }
     body.students.forEach(function(s) {
-      if (s.sheetRow) {
-        sSheet.getRange(s.sheetRow, 4, 1, 2).setValues([[true, s.checkedInAt]]);
+      var targetRow = (s.cif && cifMap[s.cif]) ? cifMap[s.cif] : s.sheetRow;
+      if (targetRow) {
+        sSheet.getRange(targetRow, 4, 1, 2).setValues([[true, s.checkedInAt]]);
       }
     });
   }
