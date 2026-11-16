@@ -82,26 +82,24 @@ export default function PatrocinadoresPage() {
       badge="Formulario 2 · Patrocinadores"
       title="Registro de Patrocinadores"
       subtitle="Selecciona tu empresa aliada e ingresa tus datos para acreditar tu asistencia."
-      accentClass="bg-[#008b9a]"
-      accentHex="#008b9a"
     >
       {successData ? (
-        <div className="space-y-5 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+        <div className="space-y-5 text-center text-white">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#F17C30] text-white shadow-lg">
             <CheckCircle2 className="h-10 w-10" />
           </div>
           <div>
-            <span className="inline-block rounded-full bg-teal-50 px-3 py-1 text-xs font-bold text-[#007481]">
+            <span className="inline-block rounded-full bg-[#F17C30] px-3 py-1 text-xs font-bold text-white">
               PATROCINADOR ACREDITADO
             </span>
-            <h2 className="mt-2 text-2xl font-extrabold text-slate-900">
+            <h2 className="mt-2 text-2xl font-extrabold text-white">
               {successData.fullName}
             </h2>
-            <p className="mt-1 text-sm font-semibold text-slate-600">
+            <p className="mt-1 text-sm font-semibold text-white/95">
               {successData.company}
             </p>
           </div>
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 text-sm text-emerald-900">
+          <div className="rounded-2xl border border-white/30 bg-white/15 p-4 text-sm font-medium text-white">
             Gracias por apoyar el Congreso FIA UAM 2026. Tu registro ha sido guardado.
           </div>
           <RegistrationPassQr
@@ -109,30 +107,30 @@ export default function PatrocinadoresPage() {
             fullName={successData.fullName}
             subtitle={successData.company}
             codeOrId={`PAT-${successData.company.slice(0, 8).toUpperCase()}`}
-            accentColor="#008b9a"
+            accentColor="#F17C30"
           />
           <div className="flex flex-col gap-2 sm:flex-row">
             <button
               type="button"
               onClick={reset}
-              className="flex-1 rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              className="flex-1 rounded-xl border border-white/40 bg-white/15 px-4 py-3 text-sm font-bold text-white hover:bg-white/25"
             >
               Registrar otra persona
             </button>
             <Link
               href="/"
-              className="flex-1 rounded-xl bg-[#008b9a] px-4 py-3 text-sm font-semibold text-white hover:bg-[#007380]"
+              className="flex-1 rounded-xl bg-[#F17C30] px-4 py-3 text-sm font-bold text-white shadow hover:opacity-95"
             >
               Volver al Portal
             </Link>
           </div>
         </div>
       ) : (
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 text-white">
           <div>
             <label
               htmlFor="company-select"
-              className="mb-1.5 block text-sm font-bold text-slate-700"
+              className="mb-1.5 block text-sm font-bold text-white"
             >
               Empresa Patrocinadora
             </label>
@@ -141,15 +139,15 @@ export default function PatrocinadoresPage() {
               value={company}
               onChange={(e) => setCompany(e.target.value)}
               disabled={loadingCompanies}
-              className="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-[#008b9a] focus:bg-white focus:ring-2 focus:ring-[#008b9a]/20"
+              className="w-full rounded-xl border border-white/40 bg-[#007d8a] px-4 py-3 text-sm font-bold text-white outline-none transition focus:border-[#F17C30] focus:ring-2 focus:ring-[#F17C30]"
             >
-              <option value="">
+              <option value="" className="bg-[#0099A8] text-white">
                 {loadingCompanies
                   ? "Cargando lista de empresas..."
                   : "— Selecciona una empresa —"}
               </option>
               {companies.map((c) => (
-                <option key={c} value={c}>
+                <option key={c} value={c} className="bg-[#0099A8] text-white">
                   {c}
                 </option>
               ))}
@@ -160,7 +158,7 @@ export default function PatrocinadoresPage() {
             <div>
               <label
                 htmlFor="first-name"
-                className="mb-1.5 block text-sm font-bold text-slate-700"
+                className="mb-1.5 block text-sm font-bold text-white"
               >
                 Nombre
               </label>
@@ -170,14 +168,14 @@ export default function PatrocinadoresPage() {
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
                 placeholder="Tu nombre"
-                className="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-[#008b9a] focus:bg-white focus:ring-2 focus:ring-[#008b9a]/20"
+                className="w-full rounded-xl border border-white/40 bg-white/15 px-4 py-3 text-sm font-semibold text-white placeholder-white/60 outline-none transition focus:border-[#F17C30] focus:bg-white/25 focus:ring-2 focus:ring-[#F17C30]"
               />
             </div>
 
             <div>
               <label
                 htmlFor="last-name"
-                className="mb-1.5 block text-sm font-bold text-slate-700"
+                className="mb-1.5 block text-sm font-bold text-white"
               >
                 Apellido
               </label>
@@ -187,14 +185,14 @@ export default function PatrocinadoresPage() {
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
                 placeholder="Tu apellido"
-                className="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-[#008b9a] focus:bg-white focus:ring-2 focus:ring-[#008b9a]/20"
+                className="w-full rounded-xl border border-white/40 bg-white/15 px-4 py-3 text-sm font-semibold text-white placeholder-white/60 outline-none transition focus:border-[#F17C30] focus:bg-white/25 focus:ring-2 focus:ring-[#F17C30]"
               />
             </div>
           </div>
 
           {error && (
-            <div className="flex items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-sm text-rose-800">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" />
+            <div className="flex items-start gap-2.5 rounded-xl border border-white/40 bg-[#F17C30] p-3.5 text-sm font-semibold text-white">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-white" />
               <p>{error}</p>
             </div>
           )}
@@ -202,7 +200,7 @@ export default function PatrocinadoresPage() {
           <button
             type="submit"
             disabled={submitting || loadingCompanies}
-            className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-[#008b9a] px-5 py-3.5 text-base font-bold text-white shadow-md shadow-teal-600/20 transition hover:bg-[#007380] disabled:opacity-60"
+            className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-[#F17C30] px-5 py-3.5 text-base font-bold text-white shadow-lg transition hover:opacity-95 disabled:opacity-60"
           >
             {submitting ? (
               <Loader2 className="h-5 w-5 animate-spin" />
@@ -216,4 +214,3 @@ export default function PatrocinadoresPage() {
     </RegistrationShell>
   );
 }
-

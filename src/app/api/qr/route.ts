@@ -11,31 +11,31 @@ const FORM_ROUTES: Record<
     path: "/",
     title: "Portal General · Congreso FIA UAM 2026",
     slug: "qr-portal-general-fia-2026",
-    darkColor: "#003b71",
+    darkColor: "#0099A8",
   },
   estudiantes: {
     path: "/registro/estudiantes",
     title: "Formulario 1 · Estudiantes UAM",
     slug: "qr-formulario-1-estudiantes-uam",
-    darkColor: "#003b71",
+    darkColor: "#0099A8",
   },
   patrocinadores: {
     path: "/registro/patrocinadores",
     title: "Formulario 2 · Patrocinadores",
     slug: "qr-formulario-2-patrocinadores",
-    darkColor: "#006975",
+    darkColor: "#0099A8",
   },
   docentes: {
     path: "/registro/docentes",
     title: "Formulario 3 · Docentes UAM",
     slug: "qr-formulario-3-docentes-uam",
-    darkColor: "#1e40af",
+    darkColor: "#0099A8",
   },
   invitados: {
     path: "/registro/invitados",
     title: "Formulario 4 · Invitados Especiales",
     slug: "qr-formulario-4-invitados",
-    darkColor: "#92400e",
+    darkColor: "#0099A8",
   },
 };
 
@@ -91,7 +91,7 @@ export async function GET(req: NextRequest) {
         margin: 2,
         errorCorrectionLevel: "H",
         color: {
-          dark: "#0f172a",
+          dark: "#0099A8",
           light: "#ffffff",
         },
       });
@@ -112,7 +112,7 @@ export async function GET(req: NextRequest) {
         margin: 2,
         errorCorrectionLevel: "H",
         color: {
-          dark: "#0f172a",
+          dark: "#0099A8",
           light: "#ffffff",
         },
       });

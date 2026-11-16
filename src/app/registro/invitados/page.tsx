@@ -57,23 +57,21 @@ export default function InvitadosPage() {
       badge="Formulario 4 · Invitados"
       title="Registro de Invitados"
       subtitle="Ingresa tu nombre y apellido para confirmar tu asistencia al Congreso FIA 2026."
-      accentClass="bg-[#b45309]"
-      accentHex="#b45309"
     >
       {successName ? (
-        <div className="space-y-5 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+        <div className="space-y-5 text-center text-white">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#F17C30] text-white shadow-lg">
             <CheckCircle2 className="h-10 w-10" />
           </div>
           <div>
-            <span className="inline-block rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-800">
+            <span className="inline-block rounded-full bg-[#F17C30] px-3 py-1 text-xs font-bold text-white">
               INVITADO REGISTRADO
             </span>
-            <h2 className="mt-2 text-2xl font-extrabold text-slate-900">
+            <h2 className="mt-2 text-2xl font-extrabold text-white">
               {successName}
             </h2>
           </div>
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 text-sm text-emerald-900">
+          <div className="rounded-2xl border border-white/30 bg-white/15 p-4 text-sm font-medium text-white">
             ¡Bienvenido al Congreso de Ingeniería y Arquitectura UAM! Tu registro se guardó correctamente.
           </div>
           <RegistrationPassQr
@@ -81,30 +79,30 @@ export default function InvitadosPage() {
             fullName={successName}
             subtitle="Congreso FIA UAM 2026"
             codeOrId="INVITADO-FIA-2026"
-            accentColor="#b45309"
+            accentColor="#F17C30"
           />
           <div className="flex flex-col gap-2 sm:flex-row">
             <button
               type="button"
               onClick={reset}
-              className="flex-1 rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              className="flex-1 rounded-xl border border-white/40 bg-white/15 px-4 py-3 text-sm font-bold text-white hover:bg-white/25"
             >
               Registrar otro invitado
             </button>
             <Link
               href="/"
-              className="flex-1 rounded-xl bg-[#b45309] px-4 py-3 text-sm font-semibold text-white hover:bg-[#92400e]"
+              className="flex-1 rounded-xl bg-[#F17C30] px-4 py-3 text-sm font-bold text-white shadow hover:opacity-95"
             >
               Volver al Portal
             </Link>
           </div>
         </div>
       ) : (
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 text-white">
           <div>
             <label
               htmlFor="guest-first"
-              className="mb-1.5 block text-sm font-bold text-slate-700"
+              className="mb-1.5 block text-sm font-bold text-white"
             >
               Nombre
             </label>
@@ -114,14 +112,14 @@ export default function InvitadosPage() {
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
               placeholder="Tu nombre"
-              className="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-[#b45309] focus:bg-white focus:ring-2 focus:ring-[#b45309]/20"
+              className="w-full rounded-xl border border-white/40 bg-white/15 px-4 py-3 text-sm font-semibold text-white placeholder-white/60 outline-none transition focus:border-[#F17C30] focus:bg-white/25 focus:ring-2 focus:ring-[#F17C30]"
             />
           </div>
 
           <div>
             <label
               htmlFor="guest-last"
-              className="mb-1.5 block text-sm font-bold text-slate-700"
+              className="mb-1.5 block text-sm font-bold text-white"
             >
               Apellido
             </label>
@@ -131,13 +129,13 @@ export default function InvitadosPage() {
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
               placeholder="Tu apellido"
-              className="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-[#b45309] focus:bg-white focus:ring-2 focus:ring-[#b45309]/20"
+              className="w-full rounded-xl border border-white/40 bg-white/15 px-4 py-3 text-sm font-semibold text-white placeholder-white/60 outline-none transition focus:border-[#F17C30] focus:bg-white/25 focus:ring-2 focus:ring-[#F17C30]"
             />
           </div>
 
           {error && (
-            <div className="flex items-start gap-2.5 rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-sm text-rose-800">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" />
+            <div className="flex items-start gap-2.5 rounded-xl border border-white/40 bg-[#F17C30] p-3.5 text-sm font-semibold text-white">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-white" />
               <p>{error}</p>
             </div>
           )}
@@ -145,7 +143,7 @@ export default function InvitadosPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-[#b45309] px-5 py-3.5 text-base font-bold text-white shadow-md shadow-amber-700/20 transition hover:bg-[#92400e] disabled:opacity-60"
+            className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-[#F17C30] px-5 py-3.5 text-base font-bold text-white shadow-lg transition hover:opacity-95 disabled:opacity-60"
           >
             {submitting ? (
               <Loader2 className="h-5 w-5 animate-spin" />
@@ -159,4 +157,3 @@ export default function InvitadosPage() {
     </RegistrationShell>
   );
 }
-

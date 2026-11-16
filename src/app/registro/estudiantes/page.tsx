@@ -132,28 +132,26 @@ export default function EstudiantesPage() {
       badge="Formulario 1 · Estudiantes"
       title="Registro de Estudiantes UAM"
       subtitle="Ingresa tu número de CIF para verificar tu inscripción pagada y confirmar asistencia."
-      accentClass="bg-[#003b71]"
-      accentHex="#003b71"
     >
       {confirmed && student ? (
-        <div className="space-y-5 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+        <div className="space-y-5 text-center text-white">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#F17C30] text-white shadow-lg">
             <CheckCircle2 className="h-10 w-10" />
           </div>
           <div>
-            <span className="inline-block rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
+            <span className="inline-block rounded-full bg-[#F17C30] px-3 py-1 text-xs font-bold text-white">
               ASISTENCIA CONFIRMADA
             </span>
-            <h2 className="mt-2 text-2xl font-extrabold text-slate-900">
+            <h2 className="mt-2 text-2xl font-extrabold text-white">
               {student.fullName}
             </h2>
-            <p className="mt-1 text-sm font-medium text-slate-600">
+            <p className="mt-1 text-sm font-medium text-white/90">
               CIF: <span className="font-mono font-bold">{student.cif}</span> ·{" "}
               {student.career}
             </p>
           </div>
 
-          <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 text-sm text-emerald-900">
+          <div className="rounded-2xl border border-white/30 bg-white/15 p-4 text-sm font-medium text-white">
             Tu ingreso quedó registrado correctamente en el sistema del congreso. ¡Bienvenido!
           </div>
 
@@ -162,31 +160,31 @@ export default function EstudiantesPage() {
             fullName={student.fullName}
             subtitle={student.career}
             codeOrId={`CIF-${student.cif}`}
-            accentColor="#003b71"
+            accentColor="#F17C30"
           />
 
           <div className="flex flex-col gap-2 sm:flex-row">
             <button
               type="button"
               onClick={resetForm}
-              className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              className="flex-1 rounded-xl border border-white/40 bg-white/15 px-4 py-3 text-sm font-bold text-white hover:bg-white/25"
             >
               Registrar otro estudiante
             </button>
             <Link
               href="/"
-              className="flex-1 rounded-xl bg-[#003b71] px-4 py-3 text-sm font-semibold text-white hover:bg-[#002a52]"
+              className="flex-1 rounded-xl bg-[#F17C30] px-4 py-3 text-sm font-bold text-white shadow hover:opacity-95"
             >
               Volver al Portal
             </Link>
           </div>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-6 text-white">
           <form onSubmit={handleLookup} className="space-y-3">
             <label
               htmlFor="cif-input"
-              className="block text-sm font-bold text-slate-700"
+              className="block text-sm font-bold text-white"
             >
               Número de CIF (Estudiante)
             </label>
@@ -206,13 +204,13 @@ export default function EstudiantesPage() {
                   }
                 }}
                 placeholder="Ej. 20210001"
-                className="flex-1 rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 font-mono text-base font-semibold text-slate-900 outline-none transition focus:border-[#003b71] focus:bg-white focus:ring-2 focus:ring-[#003b71]/20"
+                className="flex-1 rounded-xl border border-white/40 bg-white/15 px-4 py-3 font-mono text-base font-bold text-white placeholder-white/60 outline-none transition focus:border-[#F17C30] focus:bg-white/25 focus:ring-2 focus:ring-[#F17C30]"
                 autoFocus
               />
               <button
                 type="submit"
                 disabled={searching}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#003b71] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#002a52] disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-xl bg-[#F17C30] px-5 py-3 text-sm font-bold text-white shadow-md transition hover:opacity-95 disabled:opacity-60"
               >
                 {searching ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -222,47 +220,47 @@ export default function EstudiantesPage() {
                 Buscar
               </button>
             </div>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-white/90">
               Solo podrán registrarse estudiantes que figuren en la lista oficial de pagos confirmados.
             </p>
           </form>
 
           {lookupError && (
-            <div className="flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
-              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-rose-600" />
+            <div className="flex items-start gap-3 rounded-2xl border border-white/40 bg-[#F17C30] p-4 text-sm font-semibold text-white">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-white" />
               <p>{lookupError}</p>
             </div>
           )}
 
           {notFound && (
-            <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-center">
-              <XCircle className="mx-auto h-10 w-10 text-rose-600" />
-              <h3 className="mt-2 text-base font-bold text-rose-900">
+            <div className="rounded-2xl border border-white/40 bg-[#F17C30] p-5 text-center text-white">
+              <XCircle className="mx-auto h-10 w-10 text-white" />
+              <h3 className="mt-2 text-base font-bold text-white">
                 CIF no encontrado en la lista
               </h3>
-              <p className="mt-1 text-sm text-rose-800">
+              <p className="mt-1 text-sm text-white/95">
                 El CIF <span className="font-mono font-bold">{cif}</span> no aparece registrado con pago confirmado. Por favor acércate a la mesa de verificación para ayudarte.
               </p>
             </div>
           )}
 
           {student && blockedDuplicate && (
-            <div className="rounded-2xl border border-amber-300 bg-amber-50 p-5">
+            <div className="rounded-2xl border border-white/40 bg-[#F17C30] p-5 text-white">
               <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-black/20 text-white">
                   <Lock className="h-5 w-5" />
                 </div>
                 <div>
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-amber-800">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-white">
                     Registro Bloqueado · Ingreso Duplicado
                   </span>
-                  <h3 className="mt-0.5 text-base font-bold text-slate-900">
+                  <h3 className="mt-0.5 text-base font-extrabold text-white">
                     {student.fullName}
                   </h3>
-                  <p className="text-xs font-medium text-slate-600">
+                  <p className="text-xs font-medium text-white/90">
                     {student.career} · CIF {student.cif}
                   </p>
-                  <p className="mt-2 text-sm text-amber-900">
+                  <p className="mt-2 text-sm text-white">
                     Este estudiante ya marcó su asistencia anteriormente
                     {student.checkedInAt
                       ? ` (${new Date(student.checkedInAt).toLocaleTimeString("es-NI", {
@@ -278,22 +276,22 @@ export default function EstudiantesPage() {
           )}
 
           {student && !blockedDuplicate && (
-            <div className="space-y-4 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5">
+            <div className="space-y-4 rounded-2xl border border-white/40 bg-white/15 p-5 text-white">
               <div className="flex items-start gap-3">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#003b71] text-white">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#F17C30] text-white shadow">
                   <GraduationCap className="h-6 w-6" />
                 </div>
                 <div>
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-white">
                     Estudiante Verificado
                   </span>
-                  <h3 className="text-lg font-extrabold text-slate-900">
+                  <h3 className="text-lg font-extrabold text-white">
                     {student.fullName}
                   </h3>
-                  <p className="text-sm font-semibold text-slate-700">
+                  <p className="text-sm font-semibold text-white">
                     Carrera: {student.career}
                   </p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-white/90">
                     CIF: <span className="font-mono font-bold">{student.cif}</span>
                   </p>
                 </div>
@@ -303,7 +301,7 @@ export default function EstudiantesPage() {
                 type="button"
                 onClick={handleConfirmCheckIn}
                 disabled={submitting}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3.5 text-base font-bold text-white shadow-md shadow-emerald-600/20 transition hover:bg-emerald-700 disabled:opacity-60"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#F17C30] px-5 py-3.5 text-base font-bold text-white shadow-lg transition hover:opacity-95 disabled:opacity-60"
               >
                 {submitting ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
@@ -319,4 +317,3 @@ export default function EstudiantesPage() {
     </RegistrationShell>
   );
 }
-
