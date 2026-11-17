@@ -33,7 +33,7 @@ export interface ActivityItem {
 }
 
 export interface DashboardStats {
-  storageMode: "supabase" | "sqlite";
+  storageMode: "supabase" | "vercel-blob" | "sqlite";
   totalCheckedIn: number;
   students: {
     totalPaid: number;

@@ -53,6 +53,12 @@ export default function QrCenterPage() {
               <ArrowLeft className="h-4 w-4" />
               Portal
             </Link>
+            <Link
+              href="/admin/ruletas"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-white/40 bg-white/15 px-4 py-3 text-sm font-bold text-white hover:bg-white/25"
+            >
+              🎰 Ruletas
+            </Link>
             <button
               type="button"
               onClick={() => window.print()}

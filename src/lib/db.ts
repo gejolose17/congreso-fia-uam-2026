@@ -27,8 +27,10 @@ function isBlobEnabled(): boolean {
   return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
 }
 
-export function getStorageMode(): "supabase" | "sqlite" {
-  return isSupabaseEnabled() ? "supabase" : "sqlite";
+export function getStorageMode(): "supabase" | "vercel-blob" | "sqlite" {
+  if (isSupabaseEnabled()) return "supabase";
+  if (isBlobEnabled()) return "vercel-blob";
+  return "sqlite";
 }
 
 // ---------- Vercel Blob Cloud Persistence (Serverless Durable Store) ----------
@@ -108,6 +110,14 @@ export async function ensureCloudHydrated(maxAgeMs = 1500): Promise<void> {
             sync_status = CASE WHEN sync_status = 'synced' THEN 'synced' ELSE 'pending' END
         WHERE LOWER(TRIM(cif)) = LOWER(?)
       `);
+      const upsertStuStmt = db.prepare(`
+        INSERT INTO students (cif, full_name, career, checked_in, checked_in_at, sheet_row, sync_status)
+        VALUES (?, ?, ?, 1, ?, ?, 'pending')
+        ON CONFLICT(cif) DO UPDATE SET
+          checked_in = 1,
+          checked_in_at = COALESCE(students.checked_in_at, excluded.checked_in_at),
+          sync_status = CASE WHEN students.sync_status = 'synced' THEN 'synced' ELSE 'pending' END
+      `);
       const syncStuStmt = db.prepare(`
         UPDATE students SET sync_status = 'synced' WHERE LOWER(TRIM(cif)) = LOWER(?)
       `);
@@ -129,10 +139,35 @@ export async function ensureCloudHydrated(maxAgeMs = 1500): Promise<void> {
         for (const b of blobs) {
           const p = b.pathname;
           if (p.startsWith("fia26/stu/") && p.endsWith(".json")) {
-            const cif = decodeURIComponent(
-              p.slice("fia26/stu/".length, -".json".length)
-            );
-            markStuStmt.run(b.uploadedAt, cif);
+            const raw = p.slice("fia26/stu/".length, -".json".length);
+            const sep = raw.indexOf("__");
+            if (sep !== -1) {
+              const cifFallback = decodeURIComponent(raw.slice(0, sep));
+              const b64 = raw.slice(sep + 2);
+              try {
+                const parsed = JSON.parse(
+                  Buffer.from(b64, "base64url").toString("utf8")
+                ) as {
+                  cif: string;
+                  fullName: string;
+                  career: string;
+                  sheetRow: number | null;
+                  checkedInAt: string;
+                };
+                upsertStuStmt.run(
+                  parsed.cif || cifFallback,
+                  parsed.fullName || `Estudiante ${cifFallback}`,
+                  parsed.career || "Ingeniería Industrial",
+                  parsed.checkedInAt || b.uploadedAt,
+                  parsed.sheetRow ?? null
+                );
+              } catch {
+                markStuStmt.run(b.uploadedAt, cifFallback);
+              }
+            } else {
+              const cif = decodeURIComponent(raw);
+              markStuStmt.run(b.uploadedAt, cif);
+            }
           } else if (p.startsWith("fia26/synced-stu/") && p.endsWith(".json")) {
             const cif = decodeURIComponent(
               p.slice("fia26/synced-stu/".length, -".json".length)
@@ -572,10 +607,25 @@ export async function checkInStudentAtomic(
   }
 
   if (isBlobEnabled()) {
-    await putBlobRecord(`fia26/stu/${encodeURIComponent(existing.cif)}.json`, {
-      cif: existing.cif,
-      checkedInAt: now,
-    });
+    const stuMetaB64 = Buffer.from(
+      JSON.stringify({
+        cif: existing.cif,
+        fullName: existing.fullName,
+        career: existing.career,
+        sheetRow: existing.sheetRow,
+        checkedInAt: now,
+      }),
+      "utf8"
+    ).toString("base64url");
+    await putBlobRecord(
+      `fia26/stu/${encodeURIComponent(existing.cif)}__${stuMetaB64}.json`,
+      {
+        cif: existing.cif,
+        fullName: existing.fullName,
+        career: existing.career,
+        checkedInAt: now,
+      }
+    );
   }
 
   const updated = (await findStudentByCif(existing.cif))!;
@@ -1162,7 +1212,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       syncStatus: r.sync_status as SyncStatus,
     }));
   } else {
-    await ensureCloudHydrated();
+    await ensureCloudHydrated(0);
     const db = getSqliteDb();
     const sRows = db.prepare("SELECT * FROM students").all() as Array<{
       cif: string;
@@ -1281,7 +1331,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     })),
   ]
     .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
-    .slice(0, 30);
+    .slice(0, 500);
 
   // Timeline buckets (15-min intervals of all checked-in arrivals)
   const bucketMap = new Map<string, number>();
@@ -1380,7 +1430,7 @@ export async function getAllExportData(): Promise<{
     };
   }
 
-  await ensureCloudHydrated();
+  await ensureCloudHydrated(0);
   const db = getSqliteDb();
   const sRows = db
     .prepare("SELECT * FROM students ORDER BY cif ASC")

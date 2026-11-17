@@ -401,6 +401,12 @@ export function PortalClient() {
               Centro de QRs
             </Link>
             <Link
+              href="/admin/ruletas"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-white/15 px-3 py-1.5 font-bold text-white transition hover:bg-white/25"
+            >
+              🎰 3 Ruletas FIA
+            </Link>
+            <Link
               href="/admin/dashboard"
               className="inline-flex items-center gap-1.5 rounded-lg bg-[#F17C30] px-3 py-1.5 font-bold text-white shadow transition hover:opacity-95"
             >

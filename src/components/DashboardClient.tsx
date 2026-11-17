@@ -41,6 +41,10 @@ export function DashboardClient({ initialStats }: DashboardClientProps) {
   // Help desk CIF quick check
   const [helpCif, setHelpCif] = useState("");
   const [helpResult, setHelpResult] = useState<string | null>(null);
+  const [activityFilter, setActivityFilter] = useState<
+    "all" | "student" | "sponsor" | "teacher" | "guest"
+  >("all");
+  const [activitySearch, setActivitySearch] = useState("");
 
   useEffect(() => {
     const es = new EventSource("/api/admin/stream");
@@ -287,6 +291,13 @@ export function DashboardClient({ initialStats }: DashboardClientProps) {
             </a>
 
             <Link
+              href="/admin/ruletas"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-[#F17C30] px-3.5 py-2 text-xs font-extrabold text-white shadow-md ring-1 ring-white/40 hover:opacity-95"
+            >
+              🎰 Ruletas (3 Carreras)
+            </Link>
+
+            <Link
               href="/admin/qr"
               className="inline-flex items-center gap-1.5 rounded-xl border border-white/40 bg-white/15 px-3 py-2 text-xs font-bold text-white hover:bg-white/25"
             >
@@ -531,13 +542,45 @@ export function DashboardClient({ initialStats }: DashboardClientProps) {
         {/* Bottom Grid: Live Activity Feed & Sponsor Companies */}
         <section className="grid gap-6 lg:grid-cols-3">
           <div className="rounded-2xl border border-white/35 bg-[#0099A8] p-5 text-white shadow-lg lg:col-span-2">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-sm font-extrabold uppercase tracking-wider text-white">
-                Últimos Ingresos en Tiempo Real
-              </h2>
-              <span className="text-xs text-white/85">
-                Mostrando últimos {stats.recentActivity.length}
-              </span>
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-sm font-extrabold uppercase tracking-wider text-white">
+                  Registros Captados en Tiempo Real (Guardados en Nube)
+                </h2>
+                <span className="text-xs text-white/85">
+                  Total registrados: {stats.recentActivity.length}
+                </span>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <input
+                  type="text"
+                  value={activitySearch}
+                  onChange={(e) => setActivitySearch(e.target.value)}
+                  placeholder="Filtrar nombre, CIF o empresa..."
+                  className="rounded-xl border border-white/35 bg-white/15 px-3 py-1.5 text-xs font-semibold text-white placeholder-white/65 outline-none focus:border-[#F17C30]"
+                />
+                <select
+                  value={activityFilter}
+                  onChange={(e) =>
+                    setActivityFilter(
+                      e.target.value as
+                        | "all"
+                        | "student"
+                        | "sponsor"
+                        | "teacher"
+                        | "guest"
+                    )
+                  }
+                  className="rounded-xl border border-white/35 bg-[#F17C30] px-2.5 py-1.5 text-xs font-bold text-white outline-none"
+                >
+                  <option value="all">Todos ({stats.recentActivity.length})</option>
+                  <option value="student">Estudiantes ({stats.students.checkedIn})</option>
+                  <option value="sponsor">Patrocinadores ({stats.sponsors.total})</option>
+                  <option value="teacher">Docentes ({stats.teachers.total})</option>
+                  <option value="guest">Invitados ({stats.guests.total})</option>
+                </select>
+              </div>
             </div>
 
             {stats.recentActivity.length === 0 ? (
@@ -545,51 +588,62 @@ export function DashboardClient({ initialStats }: DashboardClientProps) {
                 Esperando registros desde los formularios o códigos QR...
               </p>
             ) : (
-              <div className="divide-y divide-white/20">
-                {stats.recentActivity.map((item) => {
-                  const labelMap = {
-                    student: "Estudiante",
-                    sponsor: "Patrocinador",
-                    teacher: "Docente",
-                    guest: "Invitado",
-                  };
+              <div className="max-h-[460px] divide-y divide-white/20 overflow-y-auto pr-1">
+                {stats.recentActivity
+                  .filter((item) => {
+                    if (activityFilter !== "all" && item.type !== activityFilter)
+                      return false;
+                    if (!activitySearch.trim()) return true;
+                    const q = activitySearch.trim().toLowerCase();
+                    return (
+                      item.name.toLowerCase().includes(q) ||
+                      item.detail.toLowerCase().includes(q)
+                    );
+                  })
+                  .map((item) => {
+                    const labelMap = {
+                      student: "Estudiante",
+                      sponsor: "Patrocinador",
+                      teacher: "Docente",
+                      guest: "Invitado",
+                    };
 
-                  return (
-                    <div
-                      key={item.id}
-                      className="flex flex-wrap items-center justify-between gap-2 py-3 text-white"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="rounded-lg bg-[#F17C30] px-2.5 py-1 text-[11px] font-bold text-white shadow-sm">
-                          {labelMap[item.type]}
-                        </span>
-                        <div>
-                          <p className="text-sm font-bold text-white">
-                            {item.name}
-                          </p>
-                          <p className="text-xs text-white/90">{item.detail}</p>
+                    return (
+                      <div
+                        key={item.id}
+                        className="flex flex-wrap items-center justify-between gap-2 py-3 text-white"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="rounded-lg bg-[#F17C30] px-2.5 py-1 text-[11px] font-bold text-white shadow-sm">
+                            {labelMap[item.type]}
+                          </span>
+                          <div>
+                            <p className="text-sm font-bold text-white">
+                              {item.name}
+                            </p>
+                            <p className="text-xs text-white/90">{item.detail}</p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 text-right">
+                          <span className="rounded-full bg-black/20 px-2.5 py-0.5 text-[10px] font-bold text-white">
+                            {item.syncStatus === "synced"
+                              ? "Guardado (Nube + Sheet)"
+                              : item.syncStatus === "error"
+                                ? "Guardado en Nube"
+                                : "Guardado en Nube"}
+                          </span>
+                          <span className="font-mono text-xs text-white/90">
+                            {new Date(item.timestamp).toLocaleTimeString("es-NI", {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                              second: "2-digit",
+                            })}
+                          </span>
                         </div>
                       </div>
-
-                      <div className="flex items-center gap-2 text-right">
-                        <span className="rounded-full bg-black/20 px-2.5 py-0.5 text-[10px] font-bold text-white">
-                          {item.syncStatus === "synced"
-                            ? "En Sheet"
-                            : item.syncStatus === "error"
-                              ? "Reintentar"
-                              : "En cola"}
-                        </span>
-                        <span className="font-mono text-xs text-white/90">
-                          {new Date(item.timestamp).toLocaleTimeString("es-NI", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            second: "2-digit",
-                          })}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
               </div>
             )}
           </div>
