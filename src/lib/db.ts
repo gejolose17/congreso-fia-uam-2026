@@ -23,8 +23,187 @@ function isSupabaseEnabled(): boolean {
   );
 }
 
+function isBlobEnabled(): boolean {
+  return Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+}
+
 export function getStorageMode(): "supabase" | "sqlite" {
   return isSupabaseEnabled() ? "supabase" : "sqlite";
+}
+
+// ---------- Vercel Blob Cloud Persistence (Serverless Durable Store) ----------
+
+const globalForCloud = globalThis as unknown as {
+  __fiaLastCloudHydrateAt?: number;
+  __fiaCloudHydrateInFlight?: Promise<void> | null;
+};
+
+async function putBlobRecord(
+  pathname: string,
+  body: unknown = {}
+): Promise<void> {
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  if (!token) return;
+  try {
+    await fetch(`https://blob.vercel-storage.com/${pathname}`, {
+      method: "PUT",
+      headers: {
+        authorization: `Bearer ${token}`,
+        "x-api-version": "7",
+        "x-content-type": "application/json",
+        "x-add-random-suffix": "0",
+        "x-cache-control-max-age": "0",
+      },
+      body: JSON.stringify(body),
+      cache: "no-store",
+    });
+  } catch (err) {
+    console.error("Vercel Blob write error:", err);
+  }
+}
+
+export async function ensureCloudHydrated(maxAgeMs = 1500): Promise<void> {
+  if (!isBlobEnabled() || isSupabaseEnabled()) return;
+  const now = Date.now();
+  if (
+    globalForCloud.__fiaLastCloudHydrateAt &&
+    now - globalForCloud.__fiaLastCloudHydrateAt < maxAgeMs
+  ) {
+    return;
+  }
+
+  if (globalForCloud.__fiaCloudHydrateInFlight) {
+    return globalForCloud.__fiaCloudHydrateInFlight;
+  }
+
+  const task = (async () => {
+    try {
+      const token = process.env.BLOB_READ_WRITE_TOKEN!;
+      const res = await fetch(
+        "https://blob.vercel-storage.com?prefix=fia26/&limit=1000",
+        {
+          headers: {
+            authorization: `Bearer ${token}`,
+            "x-api-version": "7",
+          },
+          cache: "no-store",
+        }
+      );
+      if (!res.ok) return;
+      const data = (await res.json()) as {
+        blobs?: Array<{
+          pathname: string;
+          uploadedAt: string;
+        }>;
+      };
+      const blobs = (data.blobs || []).sort((a, b) =>
+        a.uploadedAt.localeCompare(b.uploadedAt)
+      );
+
+      const db = getSqliteDb();
+      const markStuStmt = db.prepare(`
+        UPDATE students
+        SET checked_in = 1,
+            checked_in_at = COALESCE(checked_in_at, ?),
+            sync_status = CASE WHEN sync_status = 'synced' THEN 'synced' ELSE 'pending' END
+        WHERE LOWER(TRIM(cif)) = LOWER(?)
+      `);
+      const syncStuStmt = db.prepare(`
+        UPDATE students SET sync_status = 'synced' WHERE LOWER(TRIM(cif)) = LOWER(?)
+      `);
+      const insertRegStmt = db.prepare(`
+        INSERT OR IGNORE INTO registrations (id, category, company, first_name, last_name, career, created_at, sync_status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
+      `);
+      const syncRegStmt = db.prepare(`
+        UPDATE registrations SET sync_status = 'synced' WHERE id = ?
+      `);
+      const upsertCfgStmt = db.prepare(`
+        INSERT INTO app_config (key, value, updated_at)
+        VALUES (?, ?, ?)
+        ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+      `);
+
+      db.exec("BEGIN");
+      try {
+        for (const b of blobs) {
+          const p = b.pathname;
+          if (p.startsWith("fia26/stu/") && p.endsWith(".json")) {
+            const cif = decodeURIComponent(
+              p.slice("fia26/stu/".length, -".json".length)
+            );
+            markStuStmt.run(b.uploadedAt, cif);
+          } else if (p.startsWith("fia26/synced-stu/") && p.endsWith(".json")) {
+            const cif = decodeURIComponent(
+              p.slice("fia26/synced-stu/".length, -".json".length)
+            );
+            syncStuStmt.run(cif);
+          } else if (p.startsWith("fia26/reg/") && p.endsWith(".json")) {
+            const raw = p.slice("fia26/reg/".length, -".json".length);
+            const sep = raw.indexOf("__");
+            if (sep !== -1) {
+              const b64 = raw.slice(sep + 2);
+              try {
+                const parsed = JSON.parse(
+                  Buffer.from(b64, "base64url").toString("utf8")
+                ) as {
+                  id: string;
+                  category: RegistrationCategory;
+                  company: string | null;
+                  firstName: string;
+                  lastName: string;
+                  career: string | null;
+                  createdAt: string;
+                };
+                insertRegStmt.run(
+                  parsed.id,
+                  parsed.category,
+                  parsed.company || null,
+                  parsed.firstName,
+                  parsed.lastName,
+                  parsed.career || null,
+                  parsed.createdAt || b.uploadedAt
+                );
+              } catch {
+                // ignore malformed blob name
+              }
+            }
+          } else if (p.startsWith("fia26/synced-reg/") && p.endsWith(".json")) {
+            const id = decodeURIComponent(
+              p.slice("fia26/synced-reg/".length, -".json".length)
+            );
+            syncRegStmt.run(id);
+          } else if (p.startsWith("fia26/cfg/") && p.endsWith(".json")) {
+            const raw = p.slice("fia26/cfg/".length, -".json".length);
+            const sep = raw.indexOf("__");
+            if (sep !== -1) {
+              const key = decodeURIComponent(raw.slice(0, sep));
+              const b64 = raw.slice(sep + 2);
+              try {
+                const val = Buffer.from(b64, "base64url").toString("utf8");
+                upsertCfgStmt.run(key, val, b.uploadedAt);
+              } catch {
+                // ignore
+              }
+            }
+          }
+        }
+        db.exec("COMMIT");
+      } catch (err) {
+        db.exec("ROLLBACK");
+        throw err;
+      }
+
+      globalForCloud.__fiaLastCloudHydrateAt = Date.now();
+    } catch (err) {
+      console.error("Vercel Blob hydrate error:", err);
+    } finally {
+      globalForCloud.__fiaCloudHydrateInFlight = null;
+    }
+  })();
+
+  globalForCloud.__fiaCloudHydrateInFlight = task;
+  await task;
 }
 
 // ---------- SQLite (Local / Single-Node Zero-Config Engine) ----------
@@ -202,12 +381,20 @@ export async function getConfigValue(key: string): Promise<string | null> {
     );
     return rows[0]?.value ?? null;
   }
+  await ensureCloudHydrated();
   const db = getSqliteDb();
   const row = db
     .prepare("SELECT value FROM app_config WHERE key = ?")
     .get(key) as { value: string } | undefined;
   return row?.value ?? null;
 }
+
+const PERSISTED_CONFIG_KEYS = new Set([
+  "google_spreadsheet_id",
+  "google_apps_script_url",
+  "google_refresh_token",
+  "google_email",
+]);
 
 export async function setConfigValue(key: string, value: string): Promise<void> {
   const now = new Date().toISOString();
@@ -225,6 +412,14 @@ export async function setConfigValue(key: string, value: string): Promise<void> 
      VALUES (?, ?, ?)
      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
   ).run(key, value, now);
+
+  if (isBlobEnabled() && PERSISTED_CONFIG_KEYS.has(key) && value.length <= 500) {
+    const b64 = Buffer.from(value, "utf8").toString("base64url");
+    await putBlobRecord(
+      `fia26/cfg/${encodeURIComponent(key)}__${b64}.json`,
+      { key, value, updatedAt: now }
+    );
+  }
 }
 
 export async function getMultipleConfigValues(
@@ -242,6 +437,7 @@ export async function getMultipleConfigValues(
     return result;
   }
 
+  await ensureCloudHydrated();
   const db = getSqliteDb();
   const placeholders = keys.map(() => "?").join(",");
   const rows = db
@@ -292,6 +488,7 @@ export async function findStudentByCif(
     return rows[0] ? mapStudentRow(rows[0]) : null;
   }
 
+  await ensureCloudHydrated();
   const db = getSqliteDb();
   const row = db
     .prepare("SELECT * FROM students WHERE LOWER(TRIM(cif)) = LOWER(?)")
@@ -351,6 +548,7 @@ export async function checkInStudentAtomic(
     return { status: "already_checked_in", student: existing };
   }
 
+  await ensureCloudHydrated(0);
   const db = getSqliteDb();
   const existing = await findStudentByCif(cif);
   if (!existing) return { status: "not_found" };
@@ -371,6 +569,13 @@ export async function checkInStudentAtomic(
     return refreshed
       ? { status: "already_checked_in", student: refreshed }
       : { status: "not_found" };
+  }
+
+  if (isBlobEnabled()) {
+    await putBlobRecord(`fia26/stu/${encodeURIComponent(existing.cif)}.json`, {
+      cif: existing.cif,
+      checkedInAt: now,
+    });
   }
 
   const updated = (await findStudentByCif(existing.cif))!;
@@ -437,6 +642,7 @@ export async function upsertStudentsFromSheet(
     return payload.length;
   }
 
+  await ensureCloudHydrated();
   const db = getSqliteDb();
   const stmt = db.prepare(`
     INSERT INTO students (cif, full_name, career, checked_in, checked_in_at, sheet_row, sync_status)
@@ -446,16 +652,16 @@ export async function upsertStudentsFromSheet(
       career = excluded.career,
       sheet_row = excluded.sheet_row,
       checked_in = CASE
-        WHEN students.sync_status = 'pending' AND students.checked_in = 1 THEN 1
+        WHEN students.checked_in = 1 THEN 1
         ELSE excluded.checked_in
       END,
       checked_in_at = CASE
-        WHEN students.sync_status = 'pending' AND students.checked_in = 1 THEN students.checked_in_at
+        WHEN students.checked_in = 1 THEN COALESCE(students.checked_in_at, excluded.checked_in_at, ?)
         WHEN excluded.checked_in = 1 THEN COALESCE(excluded.checked_in_at, students.checked_in_at, ?)
         ELSE NULL
       END,
       sync_status = CASE
-        WHEN students.sync_status = 'pending' AND students.checked_in = 1 AND excluded.checked_in = 0 THEN 'pending'
+        WHEN students.checked_in = 1 AND excluded.checked_in = 0 THEN 'pending'
         ELSE 'synced'
       END
   `);
@@ -463,8 +669,8 @@ export async function upsertStudentsFromSheet(
   const nowIso = new Date().toISOString();
   const sheetCifs = new Set(items.map((s) => s.cif));
   const existingCifs = db
-    .prepare("SELECT cif, sync_status FROM students")
-    .all() as Array<{ cif: string; sync_status: string }>;
+    .prepare("SELECT cif, checked_in, sync_status FROM students")
+    .all() as Array<{ cif: string; checked_in: number; sync_status: string }>;
   const delStmt = db.prepare("DELETE FROM students WHERE cif = ?");
 
   db.exec("BEGIN");
@@ -481,7 +687,7 @@ export async function upsertStudentsFromSheet(
       );
     }
     for (const row of existingCifs) {
-      if (!sheetCifs.has(row.cif) && row.sync_status !== "pending") {
+      if (!sheetCifs.has(row.cif) && !row.checked_in && row.sync_status !== "pending") {
         delStmt.run(row.cif);
       }
     }
@@ -529,25 +735,58 @@ export async function reconcileRegistrationsFromSheet(
     return sheetItems.length;
   }
 
+  await ensureCloudHydrated();
   const db = getSqliteDb();
+  const existingLocal = db
+    .prepare("SELECT id, category, company, first_name, last_name FROM registrations WHERE id NOT LIKE 'sheet-%'")
+    .all() as Array<{
+    id: string;
+    category: string;
+    company: string | null;
+    first_name: string;
+    last_name: string;
+  }>;
+
+  const makeSig = (
+    cat: string,
+    fn: string,
+    ln: string,
+    comp?: string | null
+  ) =>
+    `${cat}|${fn.trim().toLowerCase()}|${ln.trim().toLowerCase()}|${(comp || "").trim().toLowerCase()}`;
+
+  const localBySig = new Map<string, string>();
+  for (const r of existingLocal) {
+    localBySig.set(makeSig(r.category, r.first_name, r.last_name, r.company), r.id);
+  }
+
   const insertStmt = db.prepare(`
     INSERT OR REPLACE INTO registrations (id, category, company, first_name, last_name, career, created_at, sync_status)
     VALUES (?, ?, ?, ?, ?, ?, ?, 'synced')
   `);
+  const markLocalSyncedStmt = db.prepare(`
+    UPDATE registrations SET sync_status = 'synced' WHERE id = ?
+  `);
 
   db.exec("BEGIN");
   try {
-    db.exec("DELETE FROM registrations WHERE sync_status = 'synced'");
+    db.exec("DELETE FROM registrations WHERE id LIKE 'sheet-%'");
     for (const r of sheetItems) {
-      insertStmt.run(
-        r.id,
-        r.category,
-        r.company || null,
-        r.firstName,
-        r.lastName,
-        r.career || null,
-        r.createdAt
-      );
+      const sig = makeSig(r.category, r.firstName, r.lastName, r.company);
+      const matchedLocalId = localBySig.get(sig);
+      if (matchedLocalId) {
+        markLocalSyncedStmt.run(matchedLocalId);
+      } else {
+        insertStmt.run(
+          r.id,
+          r.category,
+          r.company || null,
+          r.firstName,
+          r.lastName,
+          r.career || null,
+          r.createdAt
+        );
+      }
     }
     db.exec("COMMIT");
   } catch (err) {
@@ -646,6 +885,25 @@ export async function createRegistration(input: {
       `INSERT INTO registrations (id, category, company, first_name, last_name, career, created_at, sync_status)
        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')`
     ).run(id, input.category, company, firstName, lastName, career, createdAt);
+
+    if (isBlobEnabled()) {
+      const metaB64 = Buffer.from(
+        JSON.stringify({
+          id,
+          category: input.category,
+          company,
+          firstName,
+          lastName,
+          career,
+          createdAt,
+        }),
+        "utf8"
+      ).toString("base64url");
+      await putBlobRecord(`fia26/reg/${id}__${metaB64}.json`, {
+        id,
+        createdAt,
+      });
+    }
   }
 
   return {
@@ -705,6 +963,7 @@ export async function getPendingSyncItems() {
     };
   }
 
+  await ensureCloudHydrated();
   const db = getSqliteDb();
   const sRows = db
     .prepare(
@@ -793,6 +1052,17 @@ export async function markStudentsSyncStatus(
     db.exec("ROLLBACK");
     throw err;
   }
+
+  if (isBlobEnabled() && status === "synced") {
+    await Promise.all(
+      cifs.map((cif) =>
+        putBlobRecord(`fia26/synced-stu/${encodeURIComponent(cif)}.json`, {
+          cif,
+          status,
+        })
+      )
+    );
+  }
 }
 
 export async function markRegistrationsSyncStatus(
@@ -818,6 +1088,17 @@ export async function markRegistrationsSyncStatus(
   db.prepare(
     `UPDATE registrations SET sync_status = ? WHERE id IN (${placeholders})`
   ).run(status, ...ids);
+
+  if (isBlobEnabled() && status === "synced") {
+    await Promise.all(
+      ids.map((id) =>
+        putBlobRecord(`fia26/synced-reg/${encodeURIComponent(id)}.json`, {
+          id,
+          status,
+        })
+      )
+    );
+  }
 }
 
 // ---------- Dashboard Stats & Export ----------
@@ -881,6 +1162,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       syncStatus: r.sync_status as SyncStatus,
     }));
   } else {
+    await ensureCloudHydrated();
     const db = getSqliteDb();
     const sRows = db.prepare("SELECT * FROM students").all() as Array<{
       cif: string;
@@ -1098,6 +1380,7 @@ export async function getAllExportData(): Promise<{
     };
   }
 
+  await ensureCloudHydrated();
   const db = getSqliteDb();
   const sRows = db
     .prepare("SELECT * FROM students ORDER BY cif ASC")
