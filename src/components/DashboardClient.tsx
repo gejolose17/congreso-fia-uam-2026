@@ -285,16 +285,26 @@ export function DashboardClient({ initialStats }: DashboardClientProps) {
             <a
               href="/api/admin/export"
               className="inline-flex items-center gap-1.5 rounded-xl border border-white/40 bg-white/15 px-3 py-2 text-xs font-bold text-white hover:bg-white/25"
+              title="Descargar respaldo en Excel/CSV"
             >
               <Download className="h-3.5 w-3.5" />
               CSV
+            </a>
+
+            <a
+              href="/api/admin/backup?download=1"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-white/40 bg-white/15 px-3 py-2 text-xs font-bold text-white hover:bg-white/25"
+              title="Descargar resguardo completo en JSON"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Resguardo JSON
             </a>
 
             <Link
               href="/admin/ruletas"
               className="inline-flex items-center gap-1.5 rounded-xl bg-[#F17C30] px-3.5 py-2 text-xs font-extrabold text-white shadow-md ring-1 ring-white/40 hover:opacity-95"
             >
-              🎰 Ruletas (3 Carreras)
+              🎰 3 Pantallas Ruletas
             </Link>
 
             <Link

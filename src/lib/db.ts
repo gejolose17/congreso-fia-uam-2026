@@ -46,21 +46,29 @@ async function putBlobRecord(
 ): Promise<void> {
   const token = process.env.BLOB_READ_WRITE_TOKEN;
   if (!token) return;
-  try {
-    await fetch(`https://blob.vercel-storage.com/${pathname}`, {
-      method: "PUT",
-      headers: {
-        authorization: `Bearer ${token}`,
-        "x-api-version": "7",
-        "x-content-type": "application/json",
-        "x-add-random-suffix": "0",
-        "x-cache-control-max-age": "0",
-      },
-      body: JSON.stringify(body),
-      cache: "no-store",
-    });
-  } catch (err) {
-    console.error("Vercel Blob write error:", err);
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const res = await fetch(`https://blob.vercel-storage.com/${pathname}`, {
+        method: "PUT",
+        headers: {
+          authorization: `Bearer ${token}`,
+          "x-api-version": "7",
+          "x-content-type": "application/json",
+          "x-add-random-suffix": "0",
+          "x-cache-control-max-age": "0",
+        },
+        body: JSON.stringify(body),
+        cache: "no-store",
+      });
+      if (res.ok) return;
+    } catch (err) {
+      if (attempt === 3) {
+        console.error("Vercel Blob write error:", err);
+      }
+    }
+    if (attempt < 3) {
+      await new Promise((r) => setTimeout(r, 150 * attempt));
+    }
   }
 }
 
@@ -81,24 +89,38 @@ export async function ensureCloudHydrated(maxAgeMs = 1500): Promise<void> {
   const task = (async () => {
     try {
       const token = process.env.BLOB_READ_WRITE_TOKEN!;
-      const res = await fetch(
-        "https://blob.vercel-storage.com?prefix=fia26/&limit=1000",
-        {
+      const allBlobs: Array<{ pathname: string; uploadedAt: string }> = [];
+      let cursor: string | undefined;
+      for (let page = 0; page < 5; page++) {
+        const url = new URL("https://blob.vercel-storage.com");
+        url.searchParams.set("prefix", "fia26/");
+        url.searchParams.set("limit", "1000");
+        if (cursor) url.searchParams.set("cursor", cursor);
+
+        const res = await fetch(url.toString(), {
           headers: {
             authorization: `Bearer ${token}`,
             "x-api-version": "7",
           },
           cache: "no-store",
+        });
+        if (!res.ok) break;
+        const data = (await res.json()) as {
+          hasMore?: boolean;
+          cursor?: string;
+          blobs?: Array<{
+            pathname: string;
+            uploadedAt: string;
+          }>;
+        };
+        if (data.blobs?.length) {
+          allBlobs.push(...data.blobs);
         }
-      );
-      if (!res.ok) return;
-      const data = (await res.json()) as {
-        blobs?: Array<{
-          pathname: string;
-          uploadedAt: string;
-        }>;
-      };
-      const blobs = (data.blobs || []).sort((a, b) =>
+        if (!data.hasMore || !data.cursor) break;
+        cursor = data.cursor;
+      }
+
+      const blobs = allBlobs.sort((a, b) =>
         a.uploadedAt.localeCompare(b.uploadedAt)
       );
 
@@ -626,6 +648,7 @@ export async function checkInStudentAtomic(
         checkedInAt: now,
       }
     );
+    void saveMasterBackupSnapshot();
   }
 
   const updated = (await findStudentByCif(existing.cif))!;
@@ -953,6 +976,7 @@ export async function createRegistration(input: {
         id,
         createdAt,
       });
+      void saveMasterBackupSnapshot();
     }
   }
 
@@ -1469,4 +1493,135 @@ export async function getAllExportData(): Promise<{
     })),
   };
 }
+
+export async function saveMasterBackupSnapshot(): Promise<void> {
+  if (!isBlobEnabled() || isSupabaseEnabled()) return;
+  try {
+    const db = getSqliteDb();
+    const checkedStudents = db
+      .prepare(
+        "SELECT cif, full_name, career, checked_in_at, sheet_row, sync_status FROM students WHERE checked_in = 1 ORDER BY checked_in_at ASC"
+      )
+      .all();
+    const allRegs = db
+      .prepare("SELECT * FROM registrations ORDER BY created_at ASC")
+      .all();
+
+    await putBlobRecord("fia26/backup/master-snapshot.json", {
+      savedAt: new Date().toISOString(),
+      checkedStudents,
+      registrations: allRegs,
+    });
+  } catch (err) {
+    console.error("Master backup snapshot error:", err);
+  }
+}
+
+export async function restoreFromVault(payload: {
+  students?: Array<{
+    cif: string;
+    fullName?: string;
+    career?: string;
+    checkedInAt?: string | null;
+  }>;
+  registrations?: Array<{
+    id: string;
+    category: RegistrationCategory;
+    company?: string | null;
+    firstName: string;
+    lastName: string;
+    career?: string | null;
+    createdAt: string;
+  }>;
+}): Promise<{ restoredStudents: number; restoredRegistrations: number }> {
+  await ensureCloudHydrated(0);
+  const db = getSqliteDb();
+  let restoredStudents = 0;
+  let restoredRegistrations = 0;
+
+  if (payload.students?.length) {
+    for (const s of payload.students) {
+      const cif = String(s.cif || "").trim();
+      if (!cif) continue;
+      const existing = await findStudentByCif(cif);
+      if (existing && !existing.checkedIn) {
+        const ts = s.checkedInAt || new Date().toISOString();
+        db.prepare(
+          "UPDATE students SET checked_in = 1, checked_in_at = ?, sync_status = 'pending' WHERE cif = ?"
+        ).run(ts, existing.cif);
+        if (isBlobEnabled()) {
+          const stuMetaB64 = Buffer.from(
+            JSON.stringify({
+              cif: existing.cif,
+              fullName: existing.fullName,
+              career: existing.career,
+              sheetRow: existing.sheetRow,
+              checkedInAt: ts,
+            }),
+            "utf8"
+          ).toString("base64url");
+          await putBlobRecord(
+            `fia26/stu/${encodeURIComponent(existing.cif)}__${stuMetaB64}.json`,
+            {
+              cif: existing.cif,
+              fullName: existing.fullName,
+              career: existing.career,
+              checkedInAt: ts,
+            }
+          );
+        }
+        restoredStudents += 1;
+      }
+    }
+  }
+
+  if (payload.registrations?.length) {
+    const checkReg = db.prepare("SELECT 1 FROM registrations WHERE id = ?");
+    const insertReg = db.prepare(
+      `INSERT OR IGNORE INTO registrations (id, category, company, first_name, last_name, career, created_at, sync_status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')`
+    );
+    for (const r of payload.registrations) {
+      if (!r.id || !r.firstName || !r.lastName) continue;
+      const exists = checkReg.get(r.id);
+      if (!exists) {
+        insertReg.run(
+          r.id,
+          r.category,
+          r.company || null,
+          r.firstName,
+          r.lastName,
+          r.career || null,
+          r.createdAt || new Date().toISOString()
+        );
+        if (isBlobEnabled() && !r.id.startsWith("sheet-")) {
+          const metaB64 = Buffer.from(
+            JSON.stringify({
+              id: r.id,
+              category: r.category,
+              company: r.company || null,
+              firstName: r.firstName,
+              lastName: r.lastName,
+              career: r.career || null,
+              createdAt: r.createdAt || new Date().toISOString(),
+            }),
+            "utf8"
+          ).toString("base64url");
+          await putBlobRecord(`fia26/reg/${r.id}__${metaB64}.json`, {
+            id: r.id,
+            createdAt: r.createdAt,
+          });
+        }
+        restoredRegistrations += 1;
+      }
+    }
+  }
+
+  if (restoredStudents > 0 || restoredRegistrations > 0) {
+    await saveMasterBackupSnapshot();
+  }
+
+  return { restoredStudents, restoredRegistrations };
+}
+
 
