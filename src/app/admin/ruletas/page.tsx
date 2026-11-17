@@ -8,7 +8,7 @@ import {
   type RouletteCareer,
   type RouletteCareerGroup,
   type RouletteStudent,
-} from "@/app/api/admin/ruletas/route";
+} from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 

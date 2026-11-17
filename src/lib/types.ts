@@ -77,3 +77,28 @@ export interface GoogleSetupStatus {
   lastSyncError: string | null;
 }
 
+export const ROULETTE_CAREERS = [
+  "Arquitectura",
+  "Ingeniería Civil",
+  "Ingeniería Industrial",
+] as const;
+
+export type RouletteCareer = (typeof ROULETTE_CAREERS)[number];
+
+export interface RouletteStudent {
+  cif: string;
+  fullName: string;
+  career: RouletteCareer;
+  checkedIn: boolean;
+  checkedInAt: string | null;
+}
+
+export interface RouletteCareerGroup {
+  career: RouletteCareer;
+  totalPaid: number;
+  totalRegistered: number;
+  registered: RouletteStudent[];
+  allPaid: RouletteStudent[];
+}
+
+

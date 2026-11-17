@@ -2,32 +2,14 @@ import { NextResponse } from "next/server";
 import { isAdminAuthenticated } from "@/lib/auth";
 import { getAllExportData } from "@/lib/db";
 import { ensureFreshSheetData } from "@/lib/google";
+import {
+  ROULETTE_CAREERS,
+  type RouletteCareer,
+  type RouletteCareerGroup,
+  type RouletteStudent,
+} from "@/lib/types";
 
 export const dynamic = "force-dynamic";
-
-export const ROULETTE_CAREERS = [
-  "Arquitectura",
-  "Ingeniería Civil",
-  "Ingeniería Industrial",
-] as const;
-
-export type RouletteCareer = (typeof ROULETTE_CAREERS)[number];
-
-export interface RouletteStudent {
-  cif: string;
-  fullName: string;
-  career: RouletteCareer;
-  checkedIn: boolean;
-  checkedInAt: string | null;
-}
-
-export interface RouletteCareerGroup {
-  career: RouletteCareer;
-  totalPaid: number;
-  totalRegistered: number;
-  registered: RouletteStudent[];
-  allPaid: RouletteStudent[];
-}
 
 function resolveRouletteCareer(raw: string): RouletteCareer | null {
   const norm = raw

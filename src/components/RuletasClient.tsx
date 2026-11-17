@@ -22,7 +22,7 @@ import type {
   RouletteCareer,
   RouletteCareerGroup,
   RouletteStudent,
-} from "@/app/api/admin/ruletas/route";
+} from "@/lib/types";
 
 interface RuletasClientProps {
   initialCareers: RouletteCareerGroup[];
